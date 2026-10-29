@@ -1,4 +1,3 @@
-@'
 # Python
 .venv/
 venv/
@@ -10,7 +9,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Environment files
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
@@ -21,6 +20,8 @@ node_modules/
 out/
 dist/
 coverage/
+.vercel/
+*.tsbuildinfo
 npm-debug.log*
 
 # Local databases and generated data
@@ -30,9 +31,8 @@ npm-debug.log*
 data/*
 !data/.gitkeep
 
-# Editors and operating system
+# Editors and operating systems
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-'@ | Set-Content -Encoding utf8 .gitignore
