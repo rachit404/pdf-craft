@@ -13,6 +13,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pypdf.errors import PdfReadError
 from sqlalchemy import text
@@ -21,10 +22,16 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app.models import PDFJob
+from app.pdf_compressor import compress_pdf
 from app.pdf_inspector import inspect_pdf
 from app.pdf_text import extract_pdf_text
 from app.repositories import create_job, list_jobs
-from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
+from app.storage import (
+    OUTPUT_DIR,
+    UPLOAD_DIR,
+    ensure_storage_dirs,
+    sanitize_filename,
+)
 
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -76,26 +83,26 @@ class PDFUploadResponse(BaseModel):
     size_bytes: int
 
 
-def get_stored_pdf_path(stored_filename: str) -> Path:
-    """Resolve a stored PDF filename safely inside the upload directory."""
+def resolve_stored_file(filename: str, directory: Path) -> Path:
+    """Resolve a PDF filename safely inside its designated directory."""
     try:
-        safe_filename = sanitize_filename(stored_filename)
+        safe_filename = sanitize_filename(filename)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid stored PDF filename.",
+            detail="Invalid PDF filename.",
         ) from exc
 
     if (
-        safe_filename != stored_filename
+        safe_filename != filename
         or not safe_filename.lower().endswith(".pdf")
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid stored PDF filename.",
+            detail="Invalid PDF filename.",
         )
 
-    root = UPLOAD_DIR.resolve()
+    root = directory.resolve()
     file_path = (root / safe_filename).resolve()
 
     if file_path.parent != root:
@@ -107,10 +114,14 @@ def get_stored_pdf_path(stored_filename: str) -> Path:
     if not file_path.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Uploaded PDF was not found.",
+            detail="PDF file was not found.",
         )
 
     return file_path
+
+
+def get_stored_pdf_path(stored_filename: str) -> Path:
+    return resolve_stored_file(stored_filename, UPLOAD_DIR)
 
 
 @app.get("/health")
@@ -219,6 +230,7 @@ async def upload_pdf(
 
                     if first_chunk:
                         first_chunk = False
+
                         if not chunk.startswith(PDF_SIGNATURE):
                             raise HTTPException(
                                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -299,3 +311,48 @@ def get_uploaded_pdf_text(stored_filename: str) -> dict:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not extract PDF text.",
         ) from exc
+
+
+@app.post("/uploads/{stored_filename}/compress")
+def compress_uploaded_pdf(stored_filename: str) -> dict:
+    """Compress an uploaded PDF and save the result locally."""
+    input_path = get_stored_pdf_path(stored_filename)
+
+    ensure_storage_dirs()
+
+    output_filename = f"{uuid4().hex}.pdf"
+    output_path = OUTPUT_DIR / output_filename
+
+    try:
+        result = compress_pdf(input_path, output_path)
+
+        return {
+            "message": "PDF compression completed successfully.",
+            "original_filename": stored_filename,
+            **result,
+        }
+
+    except ValueError as exc:
+        output_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except OSError as exc:
+        output_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not save the compressed PDF.",
+        ) from exc
+
+
+@app.get("/outputs/{output_filename}")
+def download_compressed_pdf(output_filename: str) -> FileResponse:
+    """Download a locally stored processed PDF."""
+    file_path = resolve_stored_file(output_filename, OUTPUT_DIR)
+
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=file_path.name,
+    )
