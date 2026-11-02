@@ -1,36 +1,27 @@
 
-from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi import (
     Depends,
     FastAPI,
     File,
     HTTPException,
-    Query,
     UploadFile,
     status,
 )
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 from pypdf.errors import PdfReadError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.routers.jobs import router as jobs_router
 from app.dependencies import get_db
-from app.models import PDFJob
 from app.pdf_compressor import compress_pdf
 from app.pdf_inspector import inspect_pdf
 from app.pdf_text import extract_pdf_text
-from app.repositories import (
-    create_job,
-    delete_job,
-    get_job_by_public_id,
-    list_jobs,
-)
 from app.storage import (
     OUTPUT_DIR,
     UPLOAD_DIR,
@@ -48,37 +39,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-
-class PDFOperation(str, Enum):
-    MERGE = "merge"
-    SPLIT = "split"
-    COMPRESS = "compress"
-    ROTATE = "rotate"
-    WATERMARK = "watermark"
-    EXTRACT_TEXT = "extract_text"
-    OCR = "ocr"
-
-
-class PDFJobCreate(BaseModel):
-    operation: PDFOperation
-    original_filename: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=255,
-    )
-
-
-class PDFJobResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    public_id: UUID
-    operation: str
-    status: str
-    original_filename: str | None
-    output_filename: str | None
-    error_message: str | None
-    created_at: datetime
-    completed_at: datetime | None
+# Register API routers.
+app.include_router(jobs_router)
 
 
 class PDFUploadResponse(BaseModel):
@@ -145,91 +107,6 @@ def database_health_check(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database connection failed.",
-        ) from exc
-
-
-@app.post(
-    "/jobs",
-    response_model=PDFJobResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_pdf_job(
-    payload: PDFJobCreate,
-    db: Session = Depends(get_db),
-) -> PDFJob:
-    try:
-        return create_job(
-            db=db,
-            operation=payload.operation.value,
-            original_filename=payload.original_filename,
-        )
-    except SQLAlchemyError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not create the PDF job.",
-        ) from exc
-
-
-@app.get("/jobs", response_model=list[PDFJobResponse])
-def get_pdf_jobs(
-    limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    db: Session = Depends(get_db),
-) -> list[PDFJob]:
-    try:
-        return list_jobs(db=db, limit=limit, offset=offset)
-    except SQLAlchemyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not retrieve PDF jobs.",
-        ) from exc
-
-
-@app.get("/jobs/{public_id}", response_model=PDFJobResponse)
-def get_pdf_job(
-    public_id: UUID,
-    db: Session = Depends(get_db),
-) -> PDFJob:
-    try:
-        job = get_job_by_public_id(db=db, public_id=public_id)
-
-        if job is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="PDF job was not found.",
-            )
-
-        return job
-    except SQLAlchemyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not retrieve the PDF job.",
-        ) from exc
-
-
-@app.delete("/jobs/{public_id}")
-def delete_pdf_job(
-    public_id: UUID,
-    db: Session = Depends(get_db),
-) -> dict[str, str]:
-    try:
-        job = get_job_by_public_id(db=db, public_id=public_id)
-
-        if job is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="PDF job was not found.",
-            )
-
-        delete_job(db=db, job=job)
-
-        return {"message": "PDF job deleted successfully."}
-    except SQLAlchemyError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not delete the PDF job.",
         ) from exc
 
 
