@@ -1,5 +1,6 @@
 
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -17,7 +18,20 @@ class PDFJob(Base):
 
     __tablename__ = "pdf_jobs"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    # Store UUIDs as strings for SQLite compatibility.
+    public_id: Mapped[str] = mapped_column(
+        String(36),
+        unique=True,
+        nullable=False,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
 
     operation: Mapped[str] = mapped_column(
         String(50),

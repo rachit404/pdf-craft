@@ -2,7 +2,7 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import (
     Depends,
@@ -25,7 +25,12 @@ from app.models import PDFJob
 from app.pdf_compressor import compress_pdf
 from app.pdf_inspector import inspect_pdf
 from app.pdf_text import extract_pdf_text
-from app.repositories import create_job, list_jobs
+from app.repositories import (
+    create_job,
+    delete_job,
+    get_job_by_public_id,
+    list_jobs,
+)
 from app.storage import (
     OUTPUT_DIR,
     UPLOAD_DIR,
@@ -66,7 +71,7 @@ class PDFJobCreate(BaseModel):
 class PDFJobResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    public_id: UUID
     operation: str
     status: str
     original_filename: str | None
@@ -178,6 +183,53 @@ def get_pdf_jobs(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve PDF jobs.",
+        ) from exc
+
+
+@app.get("/jobs/{public_id}", response_model=PDFJobResponse)
+def get_pdf_job(
+    public_id: UUID,
+    db: Session = Depends(get_db),
+) -> PDFJob:
+    try:
+        job = get_job_by_public_id(db=db, public_id=public_id)
+
+        if job is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="PDF job was not found.",
+            )
+
+        return job
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve the PDF job.",
+        ) from exc
+
+
+@app.delete("/jobs/{public_id}")
+def delete_pdf_job(
+    public_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    try:
+        job = get_job_by_public_id(db=db, public_id=public_id)
+
+        if job is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="PDF job was not found.",
+            )
+
+        delete_job(db=db, job=job)
+
+        return {"message": "PDF job deleted successfully."}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not delete the PDF job.",
         ) from exc
 
 
