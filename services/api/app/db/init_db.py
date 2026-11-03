@@ -1,10 +1,10 @@
-
 from uuid import uuid4
 
 from sqlalchemy import inspect, text
 
-from app.database import Base, engine
-from app.models import PDFJob  # noqa: F401
+from app.db.base import Base
+from app.db.models import PDFJob  # noqa: F401
+from app.db.session import engine
 
 
 def migrate_pdf_jobs() -> None:

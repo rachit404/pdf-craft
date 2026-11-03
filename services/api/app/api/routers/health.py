@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db
+from app.db.dependencies import get_db
 
 
 router = APIRouter(

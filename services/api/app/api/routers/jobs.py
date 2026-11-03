@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db
-from app.models import PDFJob
-from app.repositories import (
+from app.db.dependencies import get_db
+from app.db.models import PDFJob
+from app.db.repositories.jobs import (
     create_job,
     delete_job,
     get_job_by_public_id,

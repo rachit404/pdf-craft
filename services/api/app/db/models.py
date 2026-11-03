@@ -1,11 +1,10 @@
-
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base
+from app.db.base import Base
 
 
 def utc_now() -> datetime:
@@ -24,7 +23,6 @@ class PDFJob(Base):
         index=True,
     )
 
-    # Store UUIDs as strings for SQLite compatibility.
     public_id: Mapped[str] = mapped_column(
         String(36),
         unique=True,
