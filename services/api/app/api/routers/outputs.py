@@ -1,15 +1,20 @@
+
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.storage import OUTPUT_DIR, sanitize_filename
+
 
 router = APIRouter(prefix="/outputs", tags=["Outputs"])
 
 ALLOWED_OUTPUTS = {
     ".pdf": "application/pdf",
     ".zip": "application/zip",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
 
 
@@ -39,10 +44,9 @@ def resolve_output_file(filename: str) -> Path:
 @router.get("/{output_filename}")
 def download_processed_file(output_filename: str) -> FileResponse:
     file_path = resolve_output_file(output_filename)
-    media_type = ALLOWED_OUTPUTS[file_path.suffix.lower()]
 
     return FileResponse(
         path=file_path,
-        media_type=media_type,
+        media_type=ALLOWED_OUTPUTS[file_path.suffix.lower()],
         filename=file_path.name,
     )
