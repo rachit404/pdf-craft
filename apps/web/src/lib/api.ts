@@ -123,6 +123,107 @@ export async function extractPages(
   return handleResponse<PDFOperationResponse>(response);
 }
 
+export async function reorderPDF(
+  filename: string,
+  order: number[],
+): Promise<PDFOperationResponse> {
+  const response = await fetch(
+    `${API_BASE}/operations/${encodeURIComponent(filename)}/reorder-pages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ order }),
+    },
+  );
+
+  return handleResponse<PDFOperationResponse>(response);
+}
+
+export async function deletePages(
+  filename: string,
+  pages: number[],
+): Promise<PDFOperationResponse> {
+  const response = await fetch(
+    `${API_BASE}/operations/${encodeURIComponent(filename)}/delete-pages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pages }),
+    },
+  );
+
+  return handleResponse<PDFOperationResponse>(response);
+}
+
+export async function rotatePDF(
+  filename: string,
+  pages: number[],
+  degrees: number,
+): Promise<PDFOperationResponse> {
+  const response = await fetch(
+    `${API_BASE}/operations/${encodeURIComponent(filename)}/rotate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pages, degrees }),
+    },
+  );
+
+  return handleResponse<PDFOperationResponse>(response);
+}
+
+export async function watermarkPDF(
+  filename: string,
+  text: string,
+  opacity: number,
+  fontSize: number,
+): Promise<PDFOperationResponse> {
+  const response = await fetch(
+    `${API_BASE}/operations/${encodeURIComponent(filename)}/watermark`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        opacity,
+        font_size: fontSize,
+      }),
+    },
+  );
+
+  return handleResponse<PDFOperationResponse>(response);
+}
+
+export async function numberPDFPages(
+  filename: string,
+  position: string,
+  fontSize: number,
+): Promise<PDFOperationResponse> {
+  const response = await fetch(
+    `${API_BASE}/operations/${encodeURIComponent(filename)}/page-numbers`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        position,
+        font_size: fontSize,
+      }),
+    },
+  );
+
+  return handleResponse<PDFOperationResponse>(response);
+}
+
 export function getDownloadUrl(filename: string): string {
   return `${API_BASE}/outputs/${encodeURIComponent(filename)}`;
 }

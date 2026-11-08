@@ -343,10 +343,12 @@ def watermark_pdf(
 
     def draw(pdf, width, height):
         pdf.saveState()
-        pdf.setFillAlpha(opacity)
-        pdf.setFillColor(Color(0.4, 0.4, 0.4))
-        pdf.setFont("Helvetica-Bold", font_size)
 
+        # Set the color first, then apply transparency.
+        pdf.setFillColor(Color(0.4, 0.4, 0.4))
+        pdf.setFillAlpha(opacity)
+
+        pdf.setFont("Helvetica-Bold", font_size)
         pdf.translate(width / 2, height / 2)
         pdf.rotate(45)
         pdf.drawCentredString(0, 0, text[:150])
