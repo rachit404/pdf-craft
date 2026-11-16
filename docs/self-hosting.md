@@ -101,7 +101,7 @@ result and opens it. Replace the password with yours:
 ```
 
 (`--insecure` accepts the self-made certificate; leave it out once you trust
-it.) Expected last line: `30 of 30 checks passed.` It removes its own files
+it.) Expected last line: every check passed (for example `33 of 33 checks passed.`). It removes its own files
 from the history afterwards.
 
 Check that the services cannot reach the internet and that only HTTPS is

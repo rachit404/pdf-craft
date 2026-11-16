@@ -1,6 +1,6 @@
 # PROJECT_STATE — verified 2026-11-16 (updated after Part 1 implementation)
 
-> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **175 backend tests pass** (Part 5), lint clean, build OK.
+> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **255 backend tests pass** (Parts 6-7), lint clean, build OK.
 
 ## Git
 - Local branches: `claude-takeover` (current), `main`. Both + `origin/main` + `origin/claude-takeover` = `5397490` (`feat(web): add watermark and page numbering workflows`).
@@ -43,7 +43,7 @@ Storage model: client uploads → server returns stored filename (uuid-based) �
 - Schemas are authoritative: **always re-read `schemas/*.py` + the router before wiring a workflow** (rule B in RULES.md).
 
 ## Frontend status
-Implemented workflows (28, Parts 1–4): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF + (Part 3) Protect, Unlock, Redact, Sanitize + (Part 4) Duplicate, Compress, PDF details, PDF to text, plus the Recent files view (`components/dashboard/HistoryView.tsx`, opened from the sidebar).
+Implemented workflows (28, Parts 1–4; screens restyled in Part 7): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF + (Part 3) Protect, Unlock, Redact, Sanitize + (Part 4) Duplicate, Compress, PDF details, PDF to text, plus the Recent files view (`components/dashboard/HistoryView.tsx`, opened from the sidebar).
 Placeholders (still "coming soon"): none. All 24 tool cards have workflows.
 No tool entry / workflow at all (backend exists): duplicate-pages, compress, inspect/metadata, text extraction.
 
@@ -76,3 +76,20 @@ No tool entry / workflow at all (backend exists): duplicate-pages, compress, ins
 15c. Tests use their own temp SQLite DB and retention 0 (set in `tests/conftest.py` before the app import). When browser-testing destructive features (delete-all), start the test backend with `PDF_CRAFT_STORAGE_DIR` and `PDF_CRAFT_DATABASE_URL` pointing at a scratch folder. Kill test servers by command line (PowerShell `Get-CimInstance Win32_Process | Where CommandLine -match "--port 8010"`), because two uvicorn processes can share a port on Windows and netstat misses them.
 16. Compress: `POST /uploads/{f}/compress` body `{level: lossless|balanced|strong}` (optional); result adds `level`, `output_size_bytes`; output is never larger than the input. `/uploads/{f}/info` adds `pdf_version`, `page_size`, `mixed_page_sizes`, `metadata.keywords/created/modified` and now reads with strict=False.
 17. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.
+
+
+## Parts 6-7 (built 2026-11-16, uncommitted until the user verifies)
+
+### Backend (Part 6)
+- `stored_files` table (services/file_store.py): every upload and result with kind, original name, size, owner_id (default local), parent/root, sources, operation, intermediate. `pdf_jobs.owner_id` added by migration; `stored_uploads` is no longer used. Registered automatically by `RecordedRoute` (outputs), upload endpoints, flows.
+- `resolve_stored_file` also finds RESULTS, so any result can be the input of any operation endpoint (chaining without download/upload).
+- API: `GET/POST /files`, `GET /files/{n}`, `/versions` (ancestor chain, original first), `/family` (all branches), `/download?name=`, `DELETE /files/{n}`. `POST /files` sniffs content (PDF, PNG/JPEG, DOCX, PPTX); xlsx/others 415.
+- Registry (`app/registry`): 26 operations declared once (ports, kinds, params model, each/combine mode). `GET /registry/operations` exposes them with JSON Schema. Tests prove every op runs.
+- Flow engine (`app/flows`): definition validation (`POST /flows/validate`), run in background (`POST /flows/runs`, poll `GET /flows/runs/{id}`, cancel, delete), items model, fork/merge, limits (25 nodes, 50 items/step, 200 files, 600 s), passwords masked in stored runs, interrupted runs failed on restart, finished runs pruned by retention. Intermediates are hidden from `/files` unless `include_intermediate`.
+- Not done on purpose: saved-flow CRUD, step cache, SSE (Part 9); PyMuPDF engine interface (licence decision pending, usage still confined to 4 engine files).
+
+### Frontend (Part 7)
+- Tokens/themes: `lib/themes.ts` (3 built-in: Cool Light default, Cool Dark, Warm Paper; custom themes derived from 4 colours + radius), `lib/color.ts` (WCAG contrast), `components/theme/ThemeProvider.tsx`, inline pre-paint script (no flash), all contrast checks pass AA. Settings -> Appearance has match-system switch and the custom theme creator (live preview, readability checks, save/edit/delete, export/import JSON, max 12). Stored in localStorage `pdfcraft.theme`.
+- Shell: `AppShell` (sidebar, top bar), `CommandPalette` (Ctrl K: tools, pages, themes), hash routing (`lib/route.ts`: #/tools/<category>, #/tool/<id>, #/files, #/settings), `ToolsPage` (grouped, search, press /), `FilesPage` (uses /files; expiry, download, delete, delete-all), `SettingsPage`, sign-in page restyled. UI kit in `components/ui/` (Button, controls, Toaster). Fonts local via @fontsource-variable (no CDN).
+- `app/legacy-bridge.css` remaps white/gray/violet/emerald/red so the 8 old screens follow every theme; delete it in Part 8 when they are replaced. Shared `workflows/shared/ui.tsx` and FileDropzone use the tokens.
+- Verified in a browser: theme switching and persistence, custom theme with real typing, palette, Files page end to end, merge screen in dark. Not verified: every tool screen in every theme (only the shared building blocks and 3 screens were viewed).

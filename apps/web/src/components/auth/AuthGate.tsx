@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { FileText, Loader2, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 
 import {
   getAuthStatus,
@@ -17,6 +17,7 @@ import {
   UNAUTHORIZED_EVENT,
 } from "@/lib/api";
 
+import Button from "@/components/ui/Button";
 import { ErrorBanner, inputClass } from "@/components/workflows/shared/ui";
 
 interface AuthContextValue {
@@ -90,7 +91,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (state === "checking") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] text-gray-400">
+      <div className="flex min-h-screen items-center justify-center bg-ground text-fg-subtle">
         <Loader2 className="animate-spin" />
       </div>
     );
@@ -98,24 +99,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (state === "signed-out") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#fafafa] px-5">
+      <main className="flex min-h-screen items-center justify-center bg-ground px-5">
         <form
           onSubmit={(event) => void handleSubmit(event)}
-          className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-7 shadow-sm"
+          className="w-full max-w-sm rounded-box border border-line bg-surface p-6"
         >
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white">
-              <FileText size={21} />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900">
-              pdf<span className="text-violet-600">craft</span>
-            </span>
+          <div className="mb-5 flex items-center gap-2.5">
+            <div className="h-6 w-[1.15rem] rounded-[2px_7px_2px_2px] bg-accent" aria-hidden />
+            <span className="text-lg font-semibold tracking-tight">PDF Craft</span>
           </div>
 
-          <h1 className="text-lg font-semibold text-gray-900">Sign in</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Enter the password for this server.
-          </p>
+          <h1 className="text-[0.95rem] font-semibold">Sign in</h1>
+          <p className="mt-0.5 text-[0.85rem] text-fg-muted">Enter the password for this server.</p>
 
           <label htmlFor="password" className="sr-only">
             Password
@@ -130,23 +125,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             maxLength={256}
             placeholder="Password"
             onChange={(event) => setPassword(event.target.value)}
-            className={`${inputClass} mt-5`}
+            className={`${inputClass} mt-4`}
           />
 
           <ErrorBanner message={error} />
 
-          <button
-            type="submit"
-            disabled={busy || password === ""}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? (
-              <Loader2 size={17} className="animate-spin" />
-            ) : (
-              <Lock size={17} />
-            )}
+          <Button type="submit" variant="primary" size="lg" className="mt-4 w-full" disabled={busy || password === ""}>
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} strokeWidth={1.75} />}
             Sign in
-          </button>
+          </Button>
         </form>
       </main>
     );

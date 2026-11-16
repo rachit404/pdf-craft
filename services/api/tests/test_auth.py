@@ -90,6 +90,13 @@ def test_protected_routes_need_a_session(client, protected):
     assert client.post("/operations/merge", json={"filenames": ["a.pdf", "b.pdf"]}).status_code == 401
     assert client.post("/conversions/docx-to-pdf", files={"file": ("a.docx", b"x")}).status_code == 401
     assert client.post("/security/x.pdf/sanitize").status_code == 401
+    assert client.get("/files").status_code == 401
+    assert client.post("/files", files={"file": ("a.pdf", b"%PDF-")}).status_code == 401
+    assert client.get("/files/x.pdf/download").status_code == 401
+    assert client.delete("/files/x.pdf").status_code == 401
+    assert client.get("/registry/operations").status_code == 401
+    assert client.get("/flows/runs").status_code == 401
+    assert client.post("/flows/validate", json={"nodes": [], "edges": []}).status_code == 401
 
 
 def test_health_and_status_stay_reachable(client, protected):

@@ -10,6 +10,7 @@ import shutil
 import time
 
 from app import storage
+from app.flows import runs as flow_runs
 from app.services import history
 
 
@@ -50,6 +51,7 @@ def sweep(max_age_seconds: float) -> int:
         remaining.append(kept)
 
     history.forget_missing(*remaining)
+    flow_runs.prune(cutoff)
     return deleted
 
 

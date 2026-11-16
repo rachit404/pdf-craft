@@ -372,6 +372,38 @@ export async function extractText(filename: string): Promise<ExtractedText> {
   return handleResponse<ExtractedText>(response);
 }
 
+/** A file in storage: an upload or a result, with where it came from. */
+export interface StoredFileInfo {
+  name: string;
+  kind: string;
+  original_name: string;
+  size_bytes: number;
+  parent_name: string | null;
+  root_name: string;
+  operation: string | null;
+  created_at: string;
+  /** null when files are kept until deleted by hand. */
+  expires_at: string | null;
+  available: boolean;
+}
+
+export async function listFiles(): Promise<StoredFileInfo[]> {
+  return handleResponse<StoredFileInfo[]>(await fetch(`${API_BASE}/files?limit=200`));
+}
+
+export async function deleteFile(name: string): Promise<void> {
+  await handleResponse(
+    await fetch(`${API_BASE}/files/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  );
+}
+
+/** Download link for any stored file; `friendlyName` is what the browser saves it as. */
+export function getFileDownloadUrl(name: string, friendlyName?: string): string {
+  const url = `${API_BASE}/files/${encodeURIComponent(name)}/download`;
+
+  return friendlyName ? `${url}?name=${encodeURIComponent(friendlyName)}` : url;
+}
+
 /** One produced file in the history. */
 export interface HistoryEntry {
   public_id: string;

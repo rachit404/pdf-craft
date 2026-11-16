@@ -6,7 +6,8 @@ Read this folder **first** in every new session. It replaces re-inspecting the w
 |---|---|---|
 | `README.md` | This index + session start checklist | Always |
 | `PROJECT_STATE.md` | Verified facts about the codebase, API map, known issues | Always (update after each part) |
-| `PLAN.md` | The 5-part roadmap, scope and acceptance criteria per part | Always (tick progress) |
+| `PLAN.md` | The 5-part roadmap (Parts 1-5 done), scope and acceptance criteria per part | Always (tick progress) |
+| `PLAN_NEXT.md` | **Proposal for Parts 6+**: file-first Studio, UI redesign, Flows (n8n-style chaining), power tools, commercial readiness | When planning or starting Part 6 |
 | `RULES.md` | Working rules, conventions, testing/commit workflow | Always |
 | `DEPLOYMENT.md` | Self-hosting on Linux, privacy requirements | Part 5 (skim earlier) |
 | `BACKLOG.md` | UI improvements and deferred ideas (incl. V2) | When a part finishes |

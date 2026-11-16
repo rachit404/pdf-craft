@@ -16,7 +16,7 @@ from app.services.pdf_service import (
     inspect_document,
     preview_document_page,
 )
-from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
+from app.storage import OUTPUT_DIR, UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 
 
 PDF_SIGNATURE = b"%PDF-"
@@ -38,16 +38,16 @@ def resolve_stored_file(filename: str) -> Path:
     if safe_filename != filename or not safe_filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Invalid PDF filename.")
 
-    root = UPLOAD_DIR.resolve()
-    file_path = (root / safe_filename).resolve()
+    # Results are valid inputs too, so a result can be edited further without
+    # downloading and uploading it again.
+    for folder in (UPLOAD_DIR, OUTPUT_DIR):
+        root = folder.resolve()
+        file_path = (root / safe_filename).resolve()
 
-    if file_path.parent != root:
-        raise HTTPException(400, "Invalid file path.")
+        if file_path.parent == root and file_path.is_file():
+            return file_path
 
-    if not file_path.is_file():
-        raise HTTPException(404, "PDF file was not found.")
-
-    return file_path
+    raise HTTPException(404, "PDF file was not found.")
 
 
 def resolve_stored_image(filename: str) -> Path:
@@ -122,7 +122,7 @@ async def upload_pdf(file: UploadFile = File(...)) -> PDFUploadResponse:
             raise
 
         await run_in_threadpool(
-            history.remember_upload, stored_filename, original_filename
+            history.remember_upload, stored_filename, original_filename, "pdf", total_bytes
         )
 
         return PDFUploadResponse(
@@ -196,6 +196,9 @@ async def upload_image(file: UploadFile = File(...)) -> dict:
             destination = UPLOAD_DIR / stored_filename
             temporary_path.replace(destination)
             temporary_path = None
+            await run_in_threadpool(
+                history.remember_upload, stored_filename, original_filename, "image", total_bytes
+            )
 
             return {
                 "message": "Image uploaded successfully.",

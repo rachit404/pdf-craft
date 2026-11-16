@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+
+import ThemeProvider from "@/components/theme/ThemeProvider";
+import Toaster from "@/components/ui/Toaster";
+import { themeInitScript } from "@/lib/themes";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,8 +18,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    // The theme script sets attributes on <html> before React loads.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+      </head>
+      <body>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

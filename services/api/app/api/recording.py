@@ -48,6 +48,7 @@ def _record(request: Request, response: Response, sources: list[str]) -> None:
         operation=request.url.path.rstrip("/").rsplit("/", 1)[-1],
         source_name=source,
         output_filename=output,
+        sources=sources,
     )
 
 

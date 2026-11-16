@@ -25,11 +25,17 @@ def pdf_storage(tmp_path: Path, monkeypatch):
     output_dir.mkdir()
 
     import app.api.routers.uploads as uploads_router
+    import app.services.conversion_service as conversion_service
+    from app import storage
     import app.api.routers.outputs as outputs_router
     import app.services.pdf_service as pdf_service
     import app.services.security_service as security_service
 
     monkeypatch.setattr(uploads_router, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(uploads_router, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(conversion_service, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(storage, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(storage, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(pdf_service, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(security_service, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(outputs_router, "OUTPUT_DIR", output_dir)

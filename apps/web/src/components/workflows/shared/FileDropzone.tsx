@@ -1,7 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+
+import Button from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 interface FileDropzoneProps {
   title: string;
@@ -77,38 +80,39 @@ export default function FileDropzone({
         setDragging(false);
         if (!busy) handle(event.dataTransfer.files);
       }}
-      className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
+      className={cn(
+        "flex flex-col items-center rounded-box border border-dashed px-6 py-10 text-center transition-colors",
         dragging
-          ? "border-violet-500 bg-violet-50"
-          : "border-gray-300 bg-white hover:border-violet-300"
-      }`}
+          ? "border-accent bg-accent-soft"
+          : "border-line-strong bg-surface hover:border-fg-subtle",
+      )}
     >
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+      <div className="mb-3 flex size-10 items-center justify-center rounded-ctl bg-hover text-fg-muted">
         {busy ? (
-          <Loader2 size={25} className="animate-spin" />
+          <Loader2 className="size-5 animate-spin" />
         ) : (
-          <Upload size={25} />
+          <Upload className="size-5" strokeWidth={1.75} />
         )}
       </div>
 
-      <h2 className="font-semibold text-gray-900">
-        {busy ? busyLabel : title}
-      </h2>
+      <h2 className="text-[0.95rem] font-medium">{busy ? busyLabel : title}</h2>
 
-      <p className="mt-2 text-sm text-gray-500">
+      <p className="mt-1 text-[0.82rem] text-fg-subtle">
         or select {multiple ? "files" : "a file"} from your device
       </p>
 
-      <button
+      <Button
+        variant="secondary"
+        size="lg"
+        className="mt-4"
         onClick={() => inputRef.current?.click()}
         disabled={busy}
-        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
       >
-        <Upload size={17} />
+        <Upload className="size-4" strokeWidth={1.75} />
         {buttonLabel}
-      </button>
+      </Button>
 
-      <p className="mt-4 text-xs text-gray-400">{hint}</p>
+      <p className="mt-3 text-[0.75rem] text-fg-subtle">{hint}</p>
 
       <input
         ref={inputRef}

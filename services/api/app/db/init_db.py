@@ -25,6 +25,15 @@ def migrate_pdf_jobs() -> None:
                 text("ALTER TABLE pdf_jobs ADD COLUMN public_id VARCHAR(36)")
             )
 
+    if "owner_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE pdf_jobs ADD COLUMN owner_id VARCHAR(64) "
+                    "NOT NULL DEFAULT 'local'"
+                )
+            )
+
     with engine.begin() as connection:
         existing_jobs = connection.execute(
             text(

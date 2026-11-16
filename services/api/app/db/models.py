@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -29,6 +29,14 @@ class PDFJob(Base):
         nullable=False,
         index=True,
         default=lambda: str(uuid4()),
+    )
+
+    owner_id: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="local",
+        server_default="local",
+        index=True,
     )
 
     operation: Mapped[str] = mapped_column(
@@ -71,15 +79,58 @@ class PDFJob(Base):
     )
 
 
-class StoredUpload(Base):
-    """Remember the name the user gave an uploaded file (for history labels)."""
+class StoredFile(Base):
+    """A file in storage (upload or result) and where it came from.
 
-    __tablename__ = "stored_uploads"
+    `parent_name` is the file it was made from, `root_name` the first file in
+    that chain: together they form the version history of a document.
+    """
 
-    stored_filename: Mapped[str] = mapped_column(String(64), primary_key=True)
-    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    __tablename__ = "stored_files"
+
+    name: Mapped[str] = mapped_column(String(80), primary_key=True)
+    owner_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="local", index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    parent_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    root_name: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    # JSON list of every file this one was made from (merge has several).
+    sources: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    operation: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Steps inside a flow that are not its final result.
+    intermediate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=utc_now,
+    )
+
+
+class FlowRun(Base):
+    """One execution of a flow: its progress and its result."""
+
+    __tablename__ = "flow_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    owner_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="local", index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    # Secrets (passwords) are masked before the definition is stored.
+    definition: Mapped[str] = mapped_column(Text, nullable=False)
+    inputs: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    node_states: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    outputs: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )

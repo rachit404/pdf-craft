@@ -1,5 +1,7 @@
 # PLAN — 5 parts to a self-hosted V1
 
+> Parts 1-5 are implemented. The next phase (Studio UI, Flows, power tools, commercial track) is proposed in `PLAN_NEXT.md` and awaits the user's decisions.
+
 Status legend: [ ] todo · [~] in progress · [x] verified by user.
 Each part = one user verification + one commit. Parts are ordered so each is independently useful and cheap to resume.
 (This replaces the earlier "two workflows per batch" rule: inside a part, Claude builds all its workflows, then the user verifies once.)
@@ -38,7 +40,7 @@ Backend already exists for all of these; mostly frontend.
 - Backlog items worth doing here: thumbnails in Reorder/Delete/Extract, upload progress, better error states, mobile layout pass.
 - Done when: V1 feature list in the brief is fully reachable from the dashboard; backend suite green.
 
-## Part 5 — Self-host on Linux, privacy & release  [~] implemented, awaiting user verification (not committed)
+## Part 5 — Self-host on Linux, privacy & release  [x] committed 3cc4607, pushed
 - NO DOCKER (user decision). Delivered: `deploy/` (install.sh, set-password.sh, uninstall.sh, systemd units, Caddyfile.template, env example, smoke_test.py), `docs/self-hosting.md` (install + manual-run commands), README, single-user sign-in (`app/auth.py`, `AuthGate.tsx`), env-configurable limits (`app/config.py`), `constraints.txt` + `requirements-dev.txt` (req.txt deleted), Next `output: standalone`, `API_INTERNAL_URL`, `proxyClientMaxBodySize`.
 - Verified here (Windows): 175 backend tests, lint, build, smoke test 30/30 against an auth-enabled backend directly AND through the standalone Next proxy, 19 MB upload via proxy, 413 over limit, login/logout in browser, `systemd-analyze verify` + `bash -n` in WSL Ubuntu 24.04.
 - NOT verified: a real `sudo install.sh` run, Caddy, LibreOffice, IPAddressDeny behaviour (no root in WSL). First real run is on the user's Linux box: expect small fixes.

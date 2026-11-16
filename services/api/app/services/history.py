@@ -2,6 +2,7 @@
 
 History is a convenience: a database problem here must never fail the PDF
 operation itself, so every public function swallows and logs its errors.
+File bookkeeping (kind, version lineage) lives in `file_store`.
 """
 
 import logging
@@ -9,25 +10,26 @@ from collections.abc import Iterable
 
 from sqlalchemy import delete, select
 
-from app.db.models import PDFJob, StoredUpload, utc_now
+from app.db.models import PDFJob, StoredFile, utc_now
 from app.db.session import SessionLocal
+from app.services import file_store
 
 
 logger = logging.getLogger(__name__)
 
 
-def remember_upload(stored_filename: str, original_filename: str) -> None:
-    try:
-        with SessionLocal() as db:
-            db.merge(
-                StoredUpload(
-                    stored_filename=stored_filename,
-                    original_filename=original_filename[:255],
-                )
-            )
-            db.commit()
-    except Exception:
-        logger.warning("Could not record the upload name.", exc_info=True)
+def remember_upload(
+    stored_filename: str,
+    original_filename: str,
+    kind: str | None = None,
+    size: int | None = None,
+) -> None:
+    file_store.register(
+        stored_filename,
+        kind=kind,
+        original_name=original_filename,
+        size=size,
+    )
 
 
 def source_label(stored_filenames: Iterable[str]) -> str | None:
@@ -38,8 +40,7 @@ def source_label(stored_filenames: Iterable[str]) -> str | None:
         return None
 
     try:
-        with SessionLocal() as db:
-            first = db.get(StoredUpload, names[0])
+        first = file_store.get(names[0])
     except Exception:
         logger.warning("Could not look up the upload name.", exc_info=True)
         return None
@@ -50,9 +51,9 @@ def source_label(stored_filenames: Iterable[str]) -> str | None:
     extra = len(names) - 1
 
     return (
-        f"{first.original_filename} + {extra} more"
+        f"{first['original_name']} + {extra} more"
         if extra
-        else first.original_filename
+        else first["original_name"]
     )
 
 
@@ -60,6 +61,7 @@ def record_output(
     operation: str,
     source_name: str | None,
     output_filename: str,
+    sources: Iterable[str] = (),
 ) -> None:
     try:
         with SessionLocal() as db:
@@ -76,15 +78,23 @@ def record_output(
     except Exception:
         logger.warning("Could not record the output in history.", exc_info=True)
 
+    file_store.register(
+        output_filename,
+        operation=operation[:50],
+        sources=list(sources),
+    )
+
 
 def forget_missing(existing_uploads: set[str], existing_outputs: set[str]) -> None:
     """Drop rows whose files are no longer on disk."""
+    on_disk = existing_uploads | existing_outputs
+
     try:
         with SessionLocal() as db:
-            stale_uploads = [
+            stale_files = [
                 name
-                for name in db.scalars(select(StoredUpload.stored_filename))
-                if name not in existing_uploads
+                for name in db.scalars(select(StoredFile.name))
+                if name not in on_disk
             ]
             stale_jobs = [
                 job_id
@@ -94,12 +104,8 @@ def forget_missing(existing_uploads: set[str], existing_outputs: set[str]) -> No
                 if output is not None and output not in existing_outputs
             ]
 
-            if stale_uploads:
-                db.execute(
-                    delete(StoredUpload).where(
-                        StoredUpload.stored_filename.in_(stale_uploads)
-                    )
-                )
+            if stale_files:
+                db.execute(delete(StoredFile).where(StoredFile.name.in_(stale_files)))
 
             if stale_jobs:
                 db.execute(delete(PDFJob).where(PDFJob.id.in_(stale_jobs)))

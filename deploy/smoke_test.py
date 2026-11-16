@@ -19,6 +19,7 @@ import io
 import json
 import ssl
 import sys
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -297,6 +298,52 @@ def run(client: Client, password: str | None, keep: bool) -> list[tuple[str, str
         data = operate(f"/security/{a}/redact", {"terms": ["two"]})
         assert not any("two" in page.lower() for page in pdf_pages(data)), "text survived redaction"
 
+    @check("a result can be edited again without uploading it")
+    def _():
+        first = client.json("POST", f"/operations/{a}/rotate", body={"pages": [1], "degrees": 90})["output_filename"]
+        second = client.json("POST", f"/operations/{first}/watermark", body={"text": "CHAIN"})["output_filename"]
+        outputs.update({first, second})
+        expect_pages(download(second), 3)
+        family = [item["name"] for item in client.json("GET", f"/files/{second}/versions")]
+        assert family[-3:] == [a, first, second], family
+
+    @check("a flow runs from start to finish")
+    def _():
+        definition = {
+            "nodes": [
+                {"id": "in", "op": "source"},
+                {"id": "merge", "op": "merge"},
+                {"id": "stamp", "op": "watermark", "params": {"text": "FLOW"}},
+                {"id": "out", "op": "output"},
+            ],
+            "edges": [
+                {"source": "in", "target": "merge"},
+                {"source": "merge", "target": "stamp"},
+                {"source": "stamp", "target": "out"},
+            ],
+        }
+        started = client.json(
+            "POST", "/flows/runs", expect=202, body={"definition": definition, "inputs": {"in": [a, b]}}
+        )
+
+        for _ in range(120):
+            run = client.json("GET", f"/flows/runs/{started['id']}")
+            if run["status"] in ("done", "failed", "cancelled"):
+                break
+            time.sleep(0.5)
+
+        assert run["status"] == "done", run.get("error") or run["status"]
+        outputs.update(run["outputs"])
+        pages = pdf_pages(download(run["outputs"][0]))
+        assert len(pages) == 5 and "FLOW" in pages[0], "unexpected flow result"
+        client.json("DELETE", f"/flows/runs/{started['id']}")
+
+    @check("the file library lists uploads and results")
+    def _():
+        names = {item["name"] for item in client.json("GET", "/files?limit=500")}
+        assert {a, b} <= names and outputs & names, "files are missing from the library"
+        assert len(client.json("GET", "/registry/operations")) >= 20
+
     @check("history lists the results")
     def _():
         names = {job["output_filename"] for job in client.json("GET", "/jobs?limit=100")}
@@ -309,6 +356,9 @@ def run(client: Client, password: str | None, keep: bool) -> list[tuple[str, str
             for job in client.json("GET", "/jobs?limit=100"):
                 if job["output_filename"] in outputs:
                     client.json("DELETE", f"/jobs/{job['public_id']}")
+
+            for name in outputs:
+                client.call("DELETE", f"/files/{name}")
 
     return results
 
