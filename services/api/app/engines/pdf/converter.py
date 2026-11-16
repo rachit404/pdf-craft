@@ -5,6 +5,8 @@ import shutil
 import tempfile
 import zipfile
 
+from io import BytesIO
+
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,7 +23,7 @@ from openpyxl.styles import Alignment, Font
 from pptx import Presentation
 from pptx.util import Inches as PptInches
 
-from PIL import Image
+from PIL import Image, ImageOps
 from pypdf import PdfReader
 import warnings
 
@@ -37,6 +39,8 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+from app.engines.pdf import office
+from app.engines.pdf.errors import ENCRYPTED_PDF_MESSAGE
 
 
 # ---------------------------------------------------------
@@ -59,7 +63,7 @@ def _ensure_pdf(path: Path) -> None:
     reader = PdfReader(str(path), strict=False)
 
     if reader.is_encrypted:
-        raise ValueError("Encrypted PDFs are not supported.")
+        raise ValueError(ENCRYPTED_PDF_MESSAGE)
 
     if not reader.pages:
         raise ValueError("PDF contains no pages.")
@@ -159,54 +163,64 @@ def pdf_to_images(
 # PNG / JPEG -> PDF
 # ---------------------------------------------------------
 
+def _fit_a4(width_px: int, height_px: int) -> tuple[float, float]:
+    """Page size in points: the image's aspect ratio, filling one A4 dimension."""
+    box_width, box_height = (842.0, 595.0) if width_px > height_px else (595.0, 842.0)
+    scale = min(box_width / width_px, box_height / height_px)
+
+    return width_px * scale, height_px * scale
+
+
 def images_to_pdf(
     image_paths: list[Path],
     output: Path,
 ) -> dict:
+    """One page per image, in order. JPEGs are embedded without re-encoding."""
     if not image_paths:
         raise ValueError("At least one image is required.")
 
     if len(image_paths) > 100:
         raise ValueError("Maximum 100 images are supported.")
 
-    images = []
+    output.parent.mkdir(parents=True, exist_ok=True)
+    document = pymupdf.open()
 
     try:
         for path in image_paths:
             _ensure_file(path, {".png", ".jpg", ".jpeg"})
 
-            with Image.open(path) as image:
-                image.verify()
+            try:
+                with Image.open(path) as image:
+                    image.verify()
 
-            with Image.open(path) as image:
-                if image.mode not in {"RGB", "L"}:
-                    image = image.convert("RGB")
-                elif image.mode == "L":
-                    image = image.convert("RGB")
+                with Image.open(path) as image:
+                    # Phone photos store rotation in EXIF; honour it.
+                    needs_rotation = image.getexif().get(0x0112, 1) != 1
 
-                images.append(image.copy())
+                    if needs_rotation:
+                        upright = ImageOps.exif_transpose(image)
+                        buffer = BytesIO()
+                        upright.save(buffer, format=image.format, quality=95)
+                        source = {"stream": buffer.getvalue()}
+                        width, height = upright.size
+                    else:
+                        source = {"filename": str(path)}
+                        width, height = image.size
+            except OSError as exc:
+                raise ValueError(f"Invalid image: {path.name}") from exc
 
-        if not images:
-            raise ValueError("No valid images were supplied.")
+            page_width, page_height = _fit_a4(width, height)
+            page = document.new_page(width=page_width, height=page_height)
+            page.insert_image(page.rect, **source)
 
-        first, *remaining = images
-
-        output.parent.mkdir(parents=True, exist_ok=True)
-        first.save(
-            output,
-            "PDF",
-            save_all=True,
-            append_images=remaining,
-            resolution=150.0,
-        )
+        document.save(output, deflate=True, garbage=3)
 
     except Exception:
         output.unlink(missing_ok=True)
         raise
 
     finally:
-        for image in images:
-            image.close()
+        document.close()
 
     result = _finish(output)
     result["page_count"] = len(image_paths)
@@ -244,7 +258,7 @@ def pdf_to_docx(source: Path, output: Path) -> dict:
 # DOCX -> PDF
 # ---------------------------------------------------------
 
-def docx_to_pdf(source: Path, output: Path) -> dict:
+def _docx_to_pdf_basic(source: Path, output: Path) -> dict:
     _ensure_file(source, {".docx"})
 
     document = Document(str(source))
@@ -468,7 +482,7 @@ def pdf_to_pptx(source: Path, output: Path, dpi: int = 150) -> dict:
 # PPTX -> PDF (TEXT / SHAPE RECONSTRUCTION)
 # ---------------------------------------------------------
 
-def pptx_to_pdf(source: Path, output: Path) -> dict:
+def _pptx_to_pdf_basic(source: Path, output: Path) -> dict:
     _ensure_file(source, {".pptx"})
 
     presentation = Presentation(str(source))
@@ -551,6 +565,38 @@ def pptx_to_pdf(source: Path, output: Path) -> dict:
     result = _finish(output)
     result.update({
         "page_count": len(presentation.slides),
-        "conversion_mode": "text_and_table_reconstruction",
     })
     return result
+
+
+# ---------------------------------------------------------
+# WORD / POWERPOINT -> PDF (LibreOffice when installed)
+# ---------------------------------------------------------
+
+def _office_to_pdf(source: Path, output: Path, extension: str, basic) -> dict:
+    _ensure_file(source, {extension})
+    use_libreoffice = office.find_soffice() is not None
+
+    try:
+        if use_libreoffice:
+            office.convert_to_pdf(source, output)
+            result = _finish(output)
+        else:
+            result = basic(source, output)
+    except Exception:
+        output.unlink(missing_ok=True)
+        raise
+
+    with pymupdf.open(output) as converted:
+        result["page_count"] = converted.page_count
+
+    result["conversion_mode"] = "libreoffice" if use_libreoffice else "basic_text_only"
+    return result
+
+
+def docx_to_pdf(source: Path, output: Path) -> dict:
+    return _office_to_pdf(source, output, ".docx", _docx_to_pdf_basic)
+
+
+def pptx_to_pdf(source: Path, output: Path) -> dict:
+    return _office_to_pdf(source, output, ".pptx", _pptx_to_pdf_basic)

@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pypdf import PdfReader, PdfWriter
 from pypdf.errors import PdfReadError
+from app.engines.pdf.errors import ENCRYPTED_PDF_MESSAGE
 
 
 def merge_pdfs(
@@ -47,8 +48,7 @@ def merge_pdfs(
 
                 if reader.is_encrypted:
                     raise ValueError(
-                        f"Password-protected PDF cannot be merged: "
-                        f"{input_path.name}"
+                        f"{input_path.name}: {ENCRYPTED_PDF_MESSAGE}"
                     )
 
                 page_count = len(reader.pages)

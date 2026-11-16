@@ -355,6 +355,70 @@ export function cropPDF(filename: string, margins: CropMargins) {
   return postOperation(filename, "crop", margins);
 }
 
-export function getDownloadUrl(filename: string): string {
-  return `${API_BASE}/outputs/${encodeURIComponent(filename)}`;
+export interface ConversionResponse {
+  output_filename: string;
+  output_size_bytes: number;
+  page_count?: number;
+  slide_count?: number;
+  tables_extracted?: number;
+  /** "libreoffice" or "basic_text_only" for Word/PowerPoint to PDF. */
+  conversion_mode?: string;
+}
+
+async function postConversion(path: string, body?: unknown) {
+  const response = await fetch(`${API_BASE}/conversions/${path}`, {
+    method: "POST",
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  return handleResponse<ConversionResponse>(response);
+}
+
+const pdfPath = (filename: string, target: string) =>
+  `${encodeURIComponent(filename)}/${target}`;
+
+export const pdfToImages = (filename: string, imageFormat: "png" | "jpeg", dpi: number) =>
+  postConversion(pdfPath(filename, "to-images"), { image_format: imageFormat, dpi });
+
+export const pdfToDocx = (filename: string) =>
+  postConversion(pdfPath(filename, "to-docx"));
+
+export const pdfToXlsx = (filename: string) =>
+  postConversion(pdfPath(filename, "to-xlsx"));
+
+export const pdfToPptx = (filename: string, dpi: number) =>
+  postConversion(pdfPath(filename, "to-pptx"), { dpi });
+
+export const imagesToPDF = (filenames: string[]) =>
+  postConversion("images-to-pdf", { filenames });
+
+/** Word/PowerPoint are sent with the request; nothing is stored afterwards. */
+export async function officeToPDF(
+  kind: "docx" | "pptx",
+  file: File,
+): Promise<ConversionResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE}/conversions/${kind}-to-pdf`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return handleResponse<ConversionResponse>(response);
+}
+
+export async function getOfficeEngine(): Promise<"libreoffice" | "basic"> {
+  const response = await fetch(`${API_BASE}/conversions/capabilities`);
+
+  return (await handleResponse<{ office_engine: "libreoffice" | "basic" }>(response))
+    .office_engine;
+}
+
+/** `name` is the file name the browser saves it as (the extension is kept). */
+export function getDownloadUrl(filename: string, name?: string): string {
+  const url = `${API_BASE}/outputs/${encodeURIComponent(filename)}`;
+
+  return name ? `${url}?name=${encodeURIComponent(name)}` : url;
 }

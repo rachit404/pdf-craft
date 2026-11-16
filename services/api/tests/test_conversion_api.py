@@ -146,7 +146,7 @@ def test_conversion_routes_are_registered(client):
     paths = client.get("/openapi.json").json()["paths"]
 
     expected = {
-        "/conversions/pdf-to-images",
+        "/conversions/{filename}/to-images",
         "/conversions/images-to-pdf",
         "/conversions/{filename}/to-docx",
         "/conversions/{filename}/to-xlsx",
@@ -162,8 +162,7 @@ def test_api_pdf_to_images(client, artifacts):
     filename = upload_pdf(client, artifacts)
 
     response = client.post(
-        "/conversions/pdf-to-images",
-        params={"filename": filename},
+        f"/conversions/{filename}/to-images",
         json={"image_format": "png", "dpi": 72},
     )
 
@@ -335,8 +334,7 @@ def test_api_pptx_to_pdf(client, artifacts):
 
 def test_api_pdf_to_images_rejects_missing_file(client):
     response = client.post(
-        "/conversions/pdf-to-images",
-        params={"filename": "missing.pdf"},
+        "/conversions/missing.pdf/to-images",
         json={"image_format": "png", "dpi": 72},
     )
 

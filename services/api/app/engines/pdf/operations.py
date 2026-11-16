@@ -14,6 +14,7 @@ from PIL import Image
 from pypdf import PdfReader, PdfWriter, Transformation
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
+from app.engines.pdf.errors import ENCRYPTED_PDF_MESSAGE
 
 
 # ---------------------------------------------------------
@@ -27,7 +28,7 @@ def _reader(path: Path) -> PdfReader:
     reader = PdfReader(str(path), strict=False)
 
     if reader.is_encrypted:
-        raise ValueError(f"Encrypted PDF is not supported: {path.name}")
+        raise ValueError(ENCRYPTED_PDF_MESSAGE)
 
     if not reader.pages:
         raise ValueError(f"PDF has no pages: {path.name}")

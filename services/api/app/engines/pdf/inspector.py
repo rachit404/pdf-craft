@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from pypdf import PdfReader
+from app.engines.pdf.errors import ENCRYPTED_PDF_MESSAGE
 
 
 def inspect_pdf(file_path: Path) -> dict[str, Any]:
@@ -13,7 +14,7 @@ def inspect_pdf(file_path: Path) -> dict[str, Any]:
     reader = PdfReader(str(file_path), strict=True)
 
     if reader.is_encrypted:
-        raise ValueError("Encrypted PDFs are not supported yet.")
+        raise ValueError(ENCRYPTED_PDF_MESSAGE)
 
     metadata = reader.metadata
 

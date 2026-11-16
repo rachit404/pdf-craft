@@ -4,6 +4,7 @@ from typing import Any
 
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
+from app.engines.pdf.errors import ENCRYPTED_PDF_MESSAGE
 
 
 def extract_pdf_text(file_path: Path) -> dict[str, Any]:
@@ -15,7 +16,7 @@ def extract_pdf_text(file_path: Path) -> dict[str, Any]:
         reader = PdfReader(str(file_path), strict=True)
 
         if reader.is_encrypted:
-            raise ValueError("Encrypted PDFs are not supported yet.")
+            raise ValueError(ENCRYPTED_PDF_MESSAGE)
 
         pages = []
 

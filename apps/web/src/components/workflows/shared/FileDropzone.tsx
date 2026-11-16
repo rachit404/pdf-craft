@@ -14,7 +14,9 @@ interface FileDropzoneProps {
   busy: boolean;
   busyLabel: string;
   buttonLabel: string;
-  onSelect: (file: File) => void;
+  /** Allow choosing several files at once. */
+  multiple?: boolean;
+  onSelect: (files: File[]) => void;
   onError: (message: string) => void;
 }
 
@@ -28,27 +30,39 @@ export default function FileDropzone({
   busy,
   busyLabel,
   buttonLabel,
+  multiple = false,
   onSelect,
   onError,
 }: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  function handle(file?: File) {
-    if (inputRef.current) inputRef.current.value = "";
-    if (!file) return;
-
+  function problem(file: File): string {
     const name = file.name.toLowerCase();
 
     if (!extensions.some((extension) => name.endsWith(extension))) {
-      onError(`Only ${extensions.join(", ")} files are accepted.`);
-    } else if (file.size === 0) {
-      onError("The selected file is empty.");
-    } else if (file.size > maxBytes) {
-      onError(`Maximum file size is ${maxBytes / (1024 * 1024)} MB.`);
-    } else {
-      onSelect(file);
+      return `Only ${extensions.join(", ")} files are accepted.`;
     }
+
+    if (file.size === 0) return `${file.name} is empty.`;
+
+    if (file.size > maxBytes) {
+      return `${file.name} is larger than ${maxBytes / (1024 * 1024)} MB.`;
+    }
+
+    return "";
+  }
+
+  function handle(list: FileList | null) {
+    const files = Array.from(list ?? []).slice(0, multiple ? undefined : 1);
+
+    if (inputRef.current) inputRef.current.value = "";
+    if (files.length === 0) return;
+
+    const message = files.map(problem).find(Boolean);
+
+    if (message) onError(message);
+    else onSelect(files);
   }
 
   return (
@@ -61,7 +75,7 @@ export default function FileDropzone({
       onDrop={(event) => {
         event.preventDefault();
         setDragging(false);
-        if (!busy) handle(event.dataTransfer.files[0]);
+        if (!busy) handle(event.dataTransfer.files);
       }}
       className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
         dragging
@@ -82,7 +96,7 @@ export default function FileDropzone({
       </h2>
 
       <p className="mt-2 text-sm text-gray-500">
-        or select a file from your device
+        or select {multiple ? "files" : "a file"} from your device
       </p>
 
       <button
@@ -100,8 +114,9 @@ export default function FileDropzone({
         ref={inputRef}
         type="file"
         accept={accept}
+        multiple={multiple}
         className="hidden"
-        onChange={(event) => handle(event.target.files?.[0])}
+        onChange={(event) => handle(event.target.files)}
       />
     </div>
   );

@@ -1,8 +1,10 @@
 
+import zipfile
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 
 from app.api.routers.uploads import resolve_stored_file, resolve_stored_image
 from app.schemas.conversions import (
@@ -10,6 +12,7 @@ from app.schemas.conversions import (
     PDFToImagesRequest,
     PDFToPPTXRequest,
 )
+from app.engines.pdf.office import find_soffice
 from app.services import conversion_service
 from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 
@@ -17,6 +20,29 @@ from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 router = APIRouter(prefix="/conversions", tags=["PDF Conversions"])
 
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+MAX_UNPACKED_BYTES = 250 * 1024 * 1024
+
+# Every genuine Office Open XML file is a ZIP holding this main part.
+MAIN_PARTS = {".docx": "word/document.xml", ".pptx": "ppt/presentation.xml"}
+LABELS = {".docx": "Word", ".pptx": "PowerPoint"}
+
+
+def _check_office_archive(path: Path, extension: str) -> None:
+    """Reject files that are not real Office documents or unpack to huge sizes."""
+    label = LABELS[extension]
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+            unpacked = sum(item.file_size for item in archive.infolist())
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(415, f"This is not a valid {label} document.") from exc
+
+    if "[Content_Types].xml" not in names or MAIN_PARTS[extension] not in names:
+        raise HTTPException(415, f"This is not a valid {label} document.")
+
+    if unpacked > MAX_UNPACKED_BYTES:
+        raise HTTPException(413, f"The {label} document is too large once unpacked.")
 
 
 def _execute(function, *args, **kwargs):
@@ -62,6 +88,8 @@ async def _save_document_upload(file: UploadFile, extension: str) -> Path:
         if total_bytes == 0:
             raise HTTPException(400, "Uploaded document is empty.")
 
+        _check_office_archive(destination, extension)
+
         return destination
 
     except Exception:
@@ -72,10 +100,16 @@ async def _save_document_upload(file: UploadFile, extension: str) -> Path:
         await file.close()
 
 
-@router.post("/pdf-to-images")
+@router.get("/capabilities")
+def conversion_capabilities() -> dict:
+    """Report which engine converts Word/PowerPoint to PDF."""
+    return {"office_engine": "libreoffice" if find_soffice() else "basic"}
+
+
+@router.post("/{filename}/to-images")
 def convert_pdf_to_images(
-    request: PDFToImagesRequest,
     filename: str,
+    request: PDFToImagesRequest,
 ):
     return _execute(
         conversion_service.pdf_to_images,
@@ -124,7 +158,7 @@ async def convert_docx_to_pdf(file: UploadFile = File(...)):
     path = await _save_document_upload(file, ".docx")
 
     try:
-        return _execute(conversion_service.docx_to_pdf, path)
+        return await run_in_threadpool(_execute, conversion_service.docx_to_pdf, path)
     finally:
         path.unlink(missing_ok=True)
 
@@ -134,6 +168,6 @@ async def convert_pptx_to_pdf(file: UploadFile = File(...)):
     path = await _save_document_upload(file, ".pptx")
 
     try:
-        return _execute(conversion_service.pptx_to_pdf, path)
+        return await run_in_threadpool(_execute, conversion_service.pptx_to_pdf, path)
     finally:
         path.unlink(missing_ok=True)

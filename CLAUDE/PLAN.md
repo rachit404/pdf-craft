@@ -4,7 +4,7 @@ Status legend: [ ] todo · [~] in progress · [x] verified by user.
 Each part = one user verification + one commit. Parts are ordered so each is independently useful and cheap to resume.
 (This replaces the earlier "two workflows per batch" rule: inside a part, Claude builds all its workflows, then the user verifies once.)
 
-## Part 1 — Edit workflows  [~] implemented, awaiting user verification (not committed)
+## Part 1 — Edit workflows  [x] committed d14e547, pushed to origin/claude-takeover
 Backend already exists for all of these; mostly frontend.
 - Shared pieces (new workflows only): upload dropzone, result/download card, error banner.
 - Workflows: **Add Text, Add Image, Header & Footer, Background, Crop**.
@@ -13,7 +13,8 @@ Backend already exists for all of these; mostly frontend.
 - Delivered beyond plan: page-preview endpoint (pulled forward from Part 3), tools registry with code-splitting, 2 pre-existing backend bugs fixed (add-text/add-image endpoints crashed).
 - Done when: each workflow produces a correct PDF verified by script (text present at position, image present, crop box changed, header/footer on all pages, background applied).
 
-## Part 2 — Convert workflows  [ ]
+## Part 2 — Convert workflows  [~] implemented, awaiting user verification (not committed)
+- Delivered: 7 workflows; LibreOffice optional engine (`engines/pdf/office.py`, auto-detected, basic fallback + UI warning); Images→PDF rewritten (PyMuPDF, A4-fit pages, JPEG passthrough, EXIF); DOCX/PPTX content validation; friendly download names (`?name=`); actionable encrypted-PDF message; `pdf-to-images` moved to `/conversions/{f}/to-images`. LibreOffice path is only stub-tested here (not installed on the dev PC) — user should test with a real install.
 - Workflows: **PDF→Images, Images→PDF, PDF→Word, PDF→Excel, PDF→PowerPoint, Word→PDF, PowerPoint→PDF**.
 - Backend: normalize `pdf-to-images` contract (path param; keep old route working or update tests), add zip/magic validation for DOCX/PPTX uploads, handle encrypted input with a clear error.
 - Evaluate Office→PDF fidelity of the current reportlab approach; if poor, add **optional** LibreOffice (headless) engine behind the same endpoints (decision documented in `DEPLOYMENT.md`; falls back to current engine if `soffice` absent).

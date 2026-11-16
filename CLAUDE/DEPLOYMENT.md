@@ -8,7 +8,7 @@ Browser ──HTTPS──> Caddy (or nginx) ──> web (Next.js :3000) ──re
                                                                          └── volume: /data (uploads, outputs, sqlite)
 ```
 - Only the reverse proxy publishes a port. `api` is reachable only on the internal Docker network.
-- Optional: LibreOffice installed in the `api` image for high-fidelity DOCX/PPTX→PDF (decided in Part 2).
+- Optional (recommended for real Word/PowerPoint→PDF fidelity; adds ~400 MB to the image → make it a build arg): LibreOffice (`libreoffice-writer`, `libreoffice-impress`, fonts) installed in the `api` image for high-fidelity DOCX/PPTX→PDF (decided in Part 2).
 
 ## Required changes before deploy (tracked in PLAN Part 5)
 | Area | Change |

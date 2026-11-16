@@ -12,14 +12,21 @@ import {
 
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 
+interface OutputResult {
+  output_filename: string;
+  output_size_bytes: number;
+}
+
 /** Upload → configure → process → download state shared by single-PDF tools. */
-export function usePDFWorkflow() {
+export function usePDFWorkflow<
+  R extends OutputResult = PDFOperationResponse,
+>() {
   const [file, setFile] = useState<UploadedPDF | null>(null);
   const [info, setInfo] = useState<PDFInfo | null>(null);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<PDFOperationResponse | null>(null);
+  const [result, setResult] = useState<R | null>(null);
 
   /** Call when an option changes so a stale result is not shown. */
   function clearResult() {
@@ -50,9 +57,7 @@ export function usePDFWorkflow() {
     }
   }
 
-  async function run(
-    task: (filename: string) => Promise<PDFOperationResponse>,
-  ) {
+  async function run(task: (filename: string) => Promise<R>) {
     if (!file) return;
 
     clearResult();

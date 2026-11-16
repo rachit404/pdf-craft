@@ -1,6 +1,6 @@
 # PROJECT_STATE — verified 2026-11-16 (updated after Part 1 implementation)
 
-> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **94 backend tests pass**, lint clean, build OK.
+> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **115 backend tests pass** (Part 2), lint clean, build OK.
 
 ## Git
 - Local branches: `claude-takeover` (current), `main`. Both + `origin/main` + `origin/claude-takeover` = `5397490` (`feat(web): add watermark and page numbering workflows`).
@@ -37,14 +37,14 @@ Storage model: client uploads → server returns stored filename (uuid-based) �
 - `GET /uploads/{f}/info` · `GET /uploads/{f}/text` · `POST /uploads/{f}/compress`
 - `POST /operations/merge` {filenames}
 - `POST /operations/{f}/` `extract-pages`{pages} · `reorder-pages`{order} · `delete-pages`{pages} · `duplicate-pages`{pages} · `rotate`{pages,degrees} · `split`{ranges} · `watermark`{text,opacity,font_size} · `page-numbers`{position,font_size} · `header-footer`{header,footer} · `background`{red,green,blue} · `crop`{left,bottom,right,top} · `add-text`{text,x,y,font_size} · `add-image`{image_filename,x,y,width,height}
-- `POST /conversions/pdf-to-images?filename=` {image_format,dpi} (**filename is a query param — inconsistent**) · `POST /conversions/images-to-pdf` {filenames} · `POST /conversions/{f}/to-docx|to-xlsx` · `/{f}/to-pptx` {dpi} · `POST /conversions/docx-to-pdf|pptx-to-pdf` (multipart, 25 MB, extension-checked)
+- `POST /conversions/{f}/to-images` {image_format,dpi} (moved in Part 2) · `GET /conversions/capabilities` → {office_engine: libreoffice|basic} · `GET /outputs/{f}?name=` friendly download name · `POST /conversions/images-to-pdf` {filenames} · `POST /conversions/{f}/to-docx|to-xlsx` · `/{f}/to-pptx` {dpi} · `POST /conversions/docx-to-pdf|pptx-to-pdf` (multipart, 25 MB, extension-checked)
 - `POST /security/{f}/` `protect`{user_password,owner_password,allow_*} · `unlock`{password} · `redact`{regions} · `sanitize`
 - Part 1 additions: `GET /uploads/{f}/pages/{n}/preview?width=` → JPEG, headers `X-Page-Width/Height` (points, unrotated visible/crop box). `add-text` body now also takes `color` (#RRGGBB) and `pages` (optional list); `add-image` takes optional `pages`. Overlay coordinates: points, origin = bottom-left of the visible (crop) box, rotation ignored (preview is unrotated). Text is Latin-only (built-in Helvetica) → non-Latin rejected with 422. `crop` is relative to the current cropbox (accumulates). Image resolver shared: `uploads.resolve_stored_image`.
 - Schemas are authoritative: **always re-read `schemas/*.py` + the router before wiring a workflow** (rule B in RULES.md).
 
 ## Frontend status
-Implemented workflows (13): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop.
-Placeholders (still "coming soon"): pdf-to-images, images-to-pdf, pdf-to-docx, pdf-to-xlsx, pdf-to-pptx, docx-to-pdf, pptx-to-pdf, protect, unlock, redact, sanitize.
+Implemented workflows (20, Parts 1–2): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF.
+Placeholders (still "coming soon"): protect, unlock, redact, sanitize.
 No tool entry / workflow at all (backend exists): duplicate-pages, compress, inspect/metadata, text extraction.
 
 ### Frontend conventions (copy these, don't re-read every workflow)
@@ -61,11 +61,13 @@ No tool entry / workflow at all (backend exists): duplicate-pages, compress, ins
 2. SQLite job infra exists but operations don't record jobs; no history UI.
 3. No retention/cleanup of `uploads/` and `outputs/` (files accumulate forever) — privacy + disk problem for self-hosting.
 4. No authentication/authorization — must be added before exposing on a LAN/Internet (Part 5).
-5. DOCX/PPTX→PDF are Python re-implementations (reportlab), low fidelity; DOCX/PPTX upload validated by extension only (no zip/magic check).
+5. DOCX/PPTX→PDF: uses LibreOffice if found (PDF_CRAFT_SOFFICE / PATH / default Windows dirs), else a text-only reportlab fallback (UI shows a warning). Uploads are now validated as real OOXML zips (+ unpacked-size cap). LibreOffice is not installed on the dev PC → real-LO output unverified; Docker image must include it (Part 5).
 6. `services/api/req.txt` is a stale UTF-16 `pip freeze` (junk); `requirements.txt` is unpinned ranges and lacks trailing newline. Need one clean, pinned lock for deployment.
 7. `next.config.ts` rewrite uses `NEXT_PUBLIC_API_BASE_URL` (build-time inlined) → backend URL gets baked into the build; for Docker use a server-side runtime variable.
-8. API inconsistency: `pdf-to-images` takes `filename` as query param, others in path.
+8. (Fixed in Part 2) pdf-to-images route normalised.
 9. Encrypted PDFs: engines reject them ("Supply its password first") — UX must route users to Unlock.
 10. (Fixed in Part 1) add-text/add-image endpoints raised TypeError (positional/keyword mismatch in `pdf_service`) and add-image returned 500 for a missing image; both now covered by `tests/test_pdf_edit.py`.
 11. Overlay tools ignore pages with /Rotate ≠ 0 semantics (content drawn in unrotated frame, matches preview). Watermark and page-numbers still use the older mediabox-based overlay code path for page numbers (watermark uses the new box-aware path).
-12. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.
+12. Conversion endpoints for Office files run in a threadpool (LibreOffice can take minutes); concurrency capped by PDF_CRAFT_OFFICE_WORKERS (2), timeout PDF_CRAFT_OFFICE_TIMEOUT (120 s).
+13. Dev note: user's own `uvicorn --reload` on :8000 and `next dev` on :3000 may be running — test on other ports (8010/3010) and never kill them.
+14. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.

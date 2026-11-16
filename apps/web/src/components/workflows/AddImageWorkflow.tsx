@@ -167,7 +167,7 @@ export default function AddImageWorkflow({ onBack }: { onBack: () => void }) {
               busy={loadingImage}
               busyLabel="Uploading image..."
               buttonLabel="Select image"
-              onSelect={(selected) => void handleImage(selected)}
+              onSelect={([selected]) => void handleImage(selected)}
               onError={workflow.setError}
             />
           ) : (

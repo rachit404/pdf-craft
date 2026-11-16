@@ -1,7 +1,8 @@
 
+import re
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.storage import OUTPUT_DIR, sanitize_filename
@@ -41,12 +42,27 @@ def resolve_output_file(filename: str) -> Path:
     return file_path
 
 
+def _download_name(requested: str | None, file_path: Path) -> str:
+    """Use the caller's preferred name (sanitised) with the real extension."""
+    if requested:
+        stem = re.sub(r"[^\w\-. ()]", "_", Path(requested.replace("\\", "/")).stem)
+        stem = stem.strip(" .")[:100]
+
+        if stem:
+            return f"{stem}{file_path.suffix.lower()}"
+
+    return file_path.name
+
+
 @router.get("/{output_filename}")
-def download_processed_file(output_filename: str) -> FileResponse:
+def download_processed_file(
+    output_filename: str,
+    name: str | None = Query(default=None, max_length=200),
+) -> FileResponse:
     file_path = resolve_output_file(output_filename)
 
     return FileResponse(
         path=file_path,
         media_type=ALLOWED_OUTPUTS[file_path.suffix.lower()],
-        filename=file_path.name,
+        filename=_download_name(name, file_path),
     )

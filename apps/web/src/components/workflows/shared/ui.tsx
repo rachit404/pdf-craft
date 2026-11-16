@@ -105,6 +105,27 @@ export function ErrorBanner({ message }: { message: string }) {
   );
 }
 
+/** Informational or cautionary note shown above an action. */
+export function Notice({
+  tone = "info",
+  children,
+}: {
+  tone?: "info" | "warning";
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`rounded-xl border p-4 text-sm leading-6 ${
+        tone === "warning"
+          ? "border-amber-200 bg-amber-50 text-amber-900"
+          : "border-gray-200 bg-gray-50 text-gray-600"
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
 interface SubmitButtonProps {
   label: string;
   busyLabel: string;

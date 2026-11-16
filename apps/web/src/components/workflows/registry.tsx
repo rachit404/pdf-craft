@@ -26,4 +26,11 @@ export const workflows: Record<string, ComponentType<WorkflowProps>> = {
   "header-footer": dynamic(() => import("./HeaderFooterWorkflow"), { ssr: false }),
   background: dynamic(() => import("./BackgroundWorkflow"), { ssr: false }),
   crop: dynamic(() => import("./CropWorkflow"), { ssr: false }),
+  "pdf-to-images": dynamic(() => import("./PDFToImagesWorkflow"), { ssr: false }),
+  "images-to-pdf": dynamic(() => import("./ImagesToPDFWorkflow"), { ssr: false }),
+  "pdf-to-docx": dynamic(() => import("./PDFToWordWorkflow"), { ssr: false }),
+  "pdf-to-xlsx": dynamic(() => import("./PDFToExcelWorkflow"), { ssr: false }),
+  "pdf-to-pptx": dynamic(() => import("./PDFToPowerPointWorkflow"), { ssr: false }),
+  "docx-to-pdf": dynamic(() => import("./WordToPDFWorkflow"), { ssr: false }),
+  "pptx-to-pdf": dynamic(() => import("./PowerPointToPDFWorkflow"), { ssr: false }),
 };

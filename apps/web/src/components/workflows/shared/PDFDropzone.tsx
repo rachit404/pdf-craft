@@ -1,12 +1,16 @@
 "use client";
 
 import FileDropzone from "./FileDropzone";
-import { MAX_PDF_BYTES, type usePDFWorkflow } from "./usePDFWorkflow";
+import { MAX_PDF_BYTES } from "./usePDFWorkflow";
 
 export default function PDFDropzone({
   workflow,
 }: {
-  workflow: ReturnType<typeof usePDFWorkflow>;
+  workflow: {
+    uploading: boolean;
+    upload: (file: File) => Promise<void>;
+    setError: (message: string) => void;
+  };
 }) {
   return (
     <FileDropzone
@@ -18,7 +22,7 @@ export default function PDFDropzone({
       busy={workflow.uploading}
       busyLabel="Uploading and inspecting PDF..."
       buttonLabel="Select PDF"
-      onSelect={(file) => void workflow.upload(file)}
+      onSelect={([file]) => void workflow.upload(file)}
       onError={workflow.setError}
     />
   );
