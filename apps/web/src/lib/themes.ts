@@ -51,15 +51,43 @@ export interface Theme {
   seed?: CustomSeed;
 }
 
-export const DEFAULT_THEME_ID = "cool-light";
+export const DEFAULT_THEME_ID = "aurora";
 export const STORAGE_KEY = "pdfcraft.theme";
 
 export const BUILT_IN_THEMES: Theme[] = [
   {
+    id: "aurora",
+    name: "Aurora",
+    mode: "light",
+    description: "Mist greys with a deep teal accent. The default.",
+    builtIn: true,
+    vars: {
+      bg: "#EFF4F4",
+      panel: "#F8FBFB",
+      surface: "#FFFFFF",
+      line: "#D9E3E3",
+      "line-strong": "#BFCFCF",
+      fg: "#0F2A2E",
+      "fg-muted": "#3F5A5F",
+      "fg-subtle": "#4F686D",
+      accent: "#0A726D",
+      "accent-hover": "#075853",
+      "on-accent": "#FFFFFF",
+      "accent-soft": "#E1F2F0",
+      hover: "#E5EDED",
+      ok: "#17734A",
+      warn: "#9A5B06",
+      danger: "#B3261E",
+      canvas: "#E2EAEA",
+      page: "#FFFFFF",
+      radius: "8px",
+    },
+  },
+  {
     id: "cool-light",
     name: "Cool Light",
     mode: "light",
-    description: "Slate greys with a blue accent. The default.",
+    description: "Slate greys with a blue accent.",
     builtIn: true,
     vars: {
       bg: "#F4F6F9",
@@ -225,7 +253,7 @@ export function checkContrast(vars: ThemeVars): ContrastCheck[] {
 export interface StoredTheme {
   /** Id of the chosen theme (ignored while `system` is on). */
   id: string;
-  /** Follow the operating system: Cool Light by day, Cool Dark at night. */
+  /** Follow the operating system: Aurora by day, Cool Dark at night. */
   system: boolean;
   custom: Theme[];
 }
@@ -241,7 +269,7 @@ export function resolveTheme(stored: StoredTheme, systemPrefersDark: boolean): T
   const wanted = stored.system
     ? systemPrefersDark
       ? "cool-dark"
-      : "cool-light"
+      : "aurora"
     : stored.id;
 
   return themes.find((theme) => theme.id === wanted) ?? BUILT_IN_THEMES[0];
@@ -297,10 +325,10 @@ export function themeInitScript(): string {
 var B=${JSON.stringify(builtIn)};
 var s=JSON.parse(localStorage.getItem(${JSON.stringify(STORAGE_KEY)})||"null")||{};
 var dark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
-var id=s.system?(dark?"cool-dark":"cool-light"):(s.id||"cool-light");
+var id=s.system?(dark?"cool-dark":"aurora"):(s.id||"aurora");
 var t=B[id];
 if(!t&&Array.isArray(s.custom)){for(var i=0;i<s.custom.length;i++){if(s.custom[i]&&s.custom[i].id===id){t=s.custom[i];}}}
-if(!t){id="cool-light";t=B[id];}
+if(!t){id="aurora";t=B[id];}
 var r=document.documentElement;
 for(var k in t.vars){r.style.setProperty("--"+k,t.vars[k]);}
 r.dataset.theme=id;r.dataset.mode=t.mode;r.style.colorScheme=t.mode;

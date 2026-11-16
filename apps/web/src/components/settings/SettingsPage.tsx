@@ -105,7 +105,7 @@ export default function SettingsPage({ onOpenFiles }: { onOpenFiles: () => void 
         <div className="mb-4 flex items-center justify-between gap-4 rounded-box border border-line bg-surface px-4 py-3">
           <div>
             <p className="text-[0.88rem] font-medium">Match my system</p>
-            <p className="text-[0.8rem] text-fg-subtle">Use Cool Light by day and Cool Dark at night, following your device.</p>
+            <p className="text-[0.8rem] text-fg-subtle">Use Aurora by day and Cool Dark at night, following your device.</p>
           </div>
           <Switch label="Match my system" checked={followSystem} onChange={setFollowSystem} />
         </div>

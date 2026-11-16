@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
 import { toast } from "sonner";
 
 import SchemaForm, { type Settings } from "@/components/studio/SchemaForm";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import Button from "@/components/ui/Button";
 import { Input } from "@/components/ui/controls";
 import {
@@ -77,6 +78,7 @@ function Menu({ label, icon, children }: { label: string; icon: ReactNode; child
 }
 
 function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId?: string }) {
+  const { theme } = useTheme();
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<StepNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<StepEdge>([]);
@@ -439,7 +441,7 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
           </aside>
 
           {/* Canvas */}
-          <div className="relative min-w-0 flex-1 bg-canvas" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
+          <div className="relative min-w-0 flex-1 bg-canvas" style={{ colorScheme: theme.mode }} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
             <ReactFlow
               nodes={shown}
               edges={edges}

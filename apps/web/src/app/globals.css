@@ -112,7 +112,7 @@ button {
 }
 
 /* Flow canvas follows the active theme. */
-.react-flow {
+.react-flow.react-flow {
   --xy-background-color: transparent;
   --xy-edge-stroke: var(--fg-subtle);
   --xy-edge-stroke-selected: var(--accent);

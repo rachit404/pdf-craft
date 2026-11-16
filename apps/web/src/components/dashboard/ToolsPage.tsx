@@ -88,30 +88,30 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
         <div className="space-y-6">
           {groups.map((group) => (
             <section key={group.name} aria-label={group.name}>
-              <h2 className="mb-2 flex items-baseline gap-2 text-[0.75rem] font-semibold uppercase tracking-wide text-fg-muted">
+              <h2 className="mb-2.5 flex items-baseline gap-2 text-[0.75rem] font-semibold uppercase tracking-wider text-fg-muted">
                 {group.name}
                 <span className="font-mono font-normal normal-case tracking-normal text-fg-subtle">{group.items.length}</span>
               </h2>
 
-              <div className="overflow-hidden rounded-box border border-line bg-surface">
-                <ul className="-mb-px columns-1 md:columns-2 xl:columns-3 md:[column-rule:1px_solid_var(--line)]">
-                  {group.items.map((tool) => (
-                    <li key={tool.id} className="break-inside-avoid">
-                      <button
-                        type="button"
-                        onClick={() => onOpenTool(tool.id)}
-                        className="group flex w-full items-start gap-3 border-b border-line px-3.5 py-3 text-left transition-colors hover:bg-hover"
-                      >
-                        <tool.icon className="mt-0.5 size-4 shrink-0 text-fg-subtle group-hover:text-accent" strokeWidth={1.75} />
-                        <span className="min-w-0">
-                          <span className="block text-[0.9rem] font-medium">{tool.name}</span>
-                          <span className="block text-[0.8rem] leading-snug text-fg-subtle">{tool.description}</span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {group.items.map((tool) => (
+                  <li key={tool.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenTool(tool.id)}
+                      className="group flex h-full w-full items-start gap-3 rounded-box border border-line bg-surface p-3.5 text-left shadow-sm transition hover:-translate-y-px hover:border-accent/60 hover:shadow-md"
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-ctl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-on-accent">
+                        <tool.icon className="size-[1.1rem]" strokeWidth={1.75} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[0.9rem] font-semibold">{tool.name}</span>
+                        <span className="block text-[0.8rem] leading-snug text-fg-muted">{tool.description}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           ))}
         </div>

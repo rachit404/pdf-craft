@@ -56,12 +56,12 @@ function NavButton({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-ctl px-2.5 text-left font-medium transition-colors",
         sub ? "h-7 pl-9 text-[0.8rem]" : "h-8 text-[0.85rem]",
-        active ? "bg-hover text-fg" : "text-fg-muted hover:bg-hover hover:text-fg",
+        active ? "bg-accent-soft font-semibold text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
       )}
     >
       {Icon && (
         <Icon
-          className={cn("size-4 shrink-0", active && "text-accent")}
+          className="size-4 shrink-0"
           strokeWidth={1.75}
         />
       )}
@@ -100,7 +100,7 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
     <div className="flex h-full w-60 flex-col border-r border-line bg-panel">
       <div className="flex h-12 shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-5 w-4 rounded-[2px_6px_2px_2px] bg-accent" aria-hidden />
+          <div className="h-6 w-[1.15rem] rounded-[3px_8px_3px_3px] bg-gradient-to-br from-accent to-accent-hover shadow-sm" aria-hidden />
           <span className="text-[0.95rem] font-semibold tracking-tight">PDF Craft</span>
         </div>
         <button
@@ -213,7 +213,7 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
             size="icon"
             aria-label={`Theme: ${theme.name}. Switch between light and dark`}
             title={theme.name}
-            onClick={() => select(theme.mode === "dark" ? "cool-light" : "cool-dark")}
+            onClick={() => select(theme.mode === "dark" ? "aurora" : "cool-dark")}
           >
             {theme.mode === "dark" ? (
               <Sun className="size-4" strokeWidth={1.75} />
