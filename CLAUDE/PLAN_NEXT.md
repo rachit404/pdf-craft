@@ -216,7 +216,10 @@ Done when: a 6-node template runs end to end with per-node status and previews.
 - Library search: `GET /files/search?q=` scans the newest 100 PDFs (page + snippet, 8 s budget); search box on Files.
 - Flow step cache (`flows/cache.py`, table `step_cache`, `PDF_CRAFT_FLOW_CACHE=0` to disable): an identical step on identical
   files reuses its result and shows "cached"; steps using `{date}` are never cached.
-- Not yet: sign and stamp, annotate, compare PDFs, deskew and grayscale, FTS5 index (search is a live scan), batch runs,
+- Second slice: Stamp (APPROVED/DRAFT/CONFIDENTIAL presets, colour, corner, angle, tokens; Add > Stamp), Draw a signature
+  (canvas pad in Add > Image, placed like any image), Greyscale (`Page.recolor`, text stays text), Compare PDFs (text diff per
+  page, `POST /tools/compare`, Clean panel). Registry now has 34 operations.
+- Not yet: annotate, deskew, FTS5 index (search is a live scan), batch runs,
   "Save as flow" from Studio, accessibility pass, performance budget.
 
 ### Later (not scheduled)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 from pathlib import Path
 from typing import Any
 
@@ -226,3 +227,71 @@ def compress_to_target(path: Path, output: Path, target_bytes: int) -> dict[str,
         "target_met": size <= target_bytes,
         "original_size_bytes": path.stat().st_size,
     }
+
+
+# ---------------------------------------------------------
+# Greyscale
+# ---------------------------------------------------------
+
+def to_grayscale(path: Path, output: Path) -> dict[str, Any]:
+    """Turn colours and images grey. Text stays text."""
+    with _open(path) as document:
+        for page in document:
+            page.recolor(1)
+
+        return _save(document, output)
+
+
+# ---------------------------------------------------------
+# Compare
+# ---------------------------------------------------------
+
+MAX_CHANGED_PAGES = 50
+MAX_LINES = 30
+
+
+def _lines(page: pymupdf.Page) -> list[str]:
+    return [" ".join(line.split()) for line in page.get_text().splitlines() if line.strip()]
+
+
+def compare_pdfs(first: Path, second: Path) -> dict[str, Any]:
+    """Which pages differ in their text, and what was added or removed."""
+    changes: list[dict[str, Any]] = []
+
+    with _open(first) as a, _open(second) as b:
+        for index in range(max(a.page_count, b.page_count)):
+            before = _lines(a[index]) if index < a.page_count else []
+            after = _lines(b[index]) if index < b.page_count else []
+
+            if before == after:
+                continue
+
+            removed: list[str] = []
+            added: list[str] = []
+
+            for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, before, after, autojunk=False).get_opcodes():
+                if tag in ("replace", "delete"):
+                    removed.extend(before[i1:i2])
+
+                if tag in ("replace", "insert"):
+                    added.extend(after[j1:j2])
+
+            changes.append(
+                {
+                    "page": index + 1,
+                    "removed": removed[:MAX_LINES],
+                    "added": added[:MAX_LINES],
+                    "only_in": "first" if index >= b.page_count else "second" if index >= a.page_count else None,
+                }
+            )
+
+            if len(changes) >= MAX_CHANGED_PAGES:
+                break
+
+        return {
+            "pages_first": a.page_count,
+            "pages_second": b.page_count,
+            "identical": not changes,
+            "changes": changes,
+            "truncated": len(changes) >= MAX_CHANGED_PAGES,
+        }

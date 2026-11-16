@@ -300,7 +300,7 @@ def test_registry_lists_every_operation_with_a_schema(client):
     operations = client.get("/registry/operations").json()
     ids = [operation["id"] for operation in operations]
 
-    assert len(ids) == len(set(ids)) == 32
+    assert len(ids) == len(set(ids)) == 34
     assert {"merge", "split", "rotate", "watermark", "compress", "protect", "redact", "to_docx", "images_to_pdf"} <= set(ids)
 
     for operation in operations:
@@ -357,6 +357,8 @@ REGISTRY_CASES = {
     "fill_form": ({"pdf": ["form.pdf"]}, {"values": {"city": "Pune"}, "flatten": True}, ["pdf"], 1),
     "edit_metadata": ({"pdf": ["two.pdf"]}, {"title": "Hello"}, ["pdf"], 2),
     "compress_to_target": ({"pdf": ["two.pdf"]}, {"target_mb": 5}, ["pdf"], 2),
+    "stamp": ({"pdf": ["two.pdf"]}, {"text": "DRAFT"}, ["pdf"], 2),
+    "to_grayscale": ({"pdf": ["two.pdf"]}, {}, ["pdf"], 2),
     "docx_to_pdf": ({"docx": ["a.docx"]}, {}, ["pdf"], 1),
     "pptx_to_pdf": ({"pptx": ["a.pptx"]}, {}, ["pdf"], None),
 }

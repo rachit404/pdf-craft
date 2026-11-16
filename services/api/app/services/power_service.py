@@ -42,5 +42,19 @@ def edit_metadata(path: Path, details: dict) -> dict:
     return _run(power.edit_metadata, path, details)
 
 
+def to_grayscale(path: Path) -> dict:
+    return _run(power.to_grayscale, path)
+
+
+def compare(first: Path, second: Path) -> dict:
+    return power.compare_pdfs(first, second)
+
+
+def stamp(path: Path, **options) -> dict:
+    from app.engines.pdf import operations
+
+    return _run(operations.add_stamp, path, **options)
+
+
 def compress_to_target(path: Path, target_mb: float) -> dict:
     return _run(power.compress_to_target, path, int(target_mb * 1024 * 1024))

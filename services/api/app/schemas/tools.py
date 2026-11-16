@@ -27,5 +27,19 @@ class MetadataRequest(BaseModel):
     keywords: str | None = Field(default=None, max_length=500)
 
 
+class StampRequest(BaseModel):
+    text: str = Field(default="APPROVED", min_length=1, max_length=60)
+    color: str = Field(default="#C0392B", pattern=r"^#[0-9a-fA-F]{6}$")
+    position: str = Field(default="top-right", pattern=r"^(center|top-left|top-right|bottom-left|bottom-right)$")
+    size: int = Field(default=28, ge=10, le=80)
+    rotation: int = Field(default=-15, ge=-90, le=90, title="Angle (degrees)")
+    pages: list[int] | None = Field(default=None, min_length=1, max_length=500)
+
+
+class CompareRequest(BaseModel):
+    first: str
+    second: str
+
+
 class TargetSizeRequest(BaseModel):
     target_mb: float = Field(default=5, gt=0, le=500, title="Smaller than (MB)")

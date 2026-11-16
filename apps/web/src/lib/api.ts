@@ -228,6 +228,8 @@ const OPERATION_ROUTES: Record<string, (file: string) => string> = {
   unlock: (f) => `/security/${f}/unlock`,
   redact: (f) => `/security/${f}/redact`,
   sanitize: (f) => `/security/${f}/sanitize`,
+  stamp: (f) => `/tools/${f}/stamp`,
+  to_grayscale: (f) => `/tools/${f}/to-grayscale`,
   remove_blank_pages: (f) => `/tools/${f}/remove-blank-pages`,
   flatten_forms: (f) => `/tools/${f}/flatten-forms`,
   fill_form: (f) => `/tools/${f}/fill-form`,
@@ -495,5 +497,24 @@ export interface SearchResult {
 export async function searchFiles(query: string): Promise<SearchResult> {
   return handleResponse<SearchResult>(
     await fetch(`${API_BASE}/files/search?q=${encodeURIComponent(query)}`),
+  );
+}
+
+export interface CompareResult {
+  pages_first: number;
+  pages_second: number;
+  identical: boolean;
+  changes: { page: number; removed: string[]; added: string[]; only_in: "first" | "second" | null }[];
+  truncated: boolean;
+}
+
+/** Compare the text of two stored PDFs, page by page. */
+export async function compareFiles(first: string, second: string): Promise<CompareResult> {
+  return handleResponse<CompareResult>(
+    await fetch(`${API_BASE}/tools/compare`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ first, second }),
+    }),
   );
 }

@@ -172,3 +172,47 @@ def test_cache_is_skipped_for_text_with_a_date_and_when_files_are_gone(client, p
 
     again = run_and_wait(client, plain, {"in": [name]})
     assert again["status"] == "done" and "cached" not in again["node_states"]["s"]
+
+
+# ---------------------------------------------------------
+# Stamp, greyscale, compare
+# ---------------------------------------------------------
+
+def test_a_stamp_is_drawn_with_tokens_on_chosen_pages(client, pdf_storage):
+    name = stored(client, pdf_bytes("one", "two"), "a.pdf")
+
+    document = result_doc(client, client.post(f"/tools/{name}/stamp", json={"text": "DRAFT p{page}", "pages": [2]}))
+    assert "DRAFT" not in document[0].get_text()
+    assert "DRAFT p2" in document[1].get_text()
+
+    assert client.post(f"/tools/{name}/stamp", json={"text": "x", "color": "red"}).status_code == 422
+    assert client.post(f"/tools/{name}/stamp", json={"text": "\u0928\u092e\u0938\u094d\u0924\u0947"}).status_code == 422
+
+
+def test_greyscale_removes_colour_but_keeps_text(client, pdf_storage):
+    with pymupdf.open() as source:
+        page = source.new_page(width=200, height=200)
+        page.draw_rect(pymupdf.Rect(0, 0, 200, 200), fill=(0, 0, 1))
+        page.insert_text((20, 100), "hello", color=(1, 1, 1))
+        name = stored(client, source.tobytes(), "blue.pdf")
+
+    document = result_doc(client, client.post(f"/tools/{name}/to-grayscale"))
+    red, green, blue = document[0].get_pixmap(dpi=20).pixel(2, 2)
+
+    assert red == green == blue
+    assert "hello" in document[0].get_text()
+
+
+def test_compare_lists_changed_pages_and_lines(client, pdf_storage):
+    first = stored(client, pdf_bytes("price 10", "same", "only here"), "v1.pdf")
+    second = stored(client, pdf_bytes("price 12", "same"), "v2.pdf")
+
+    result = client.post("/tools/compare", json={"first": first, "second": second}).json()
+
+    assert result["identical"] is False and (result["pages_first"], result["pages_second"]) == (3, 2)
+    assert [change["page"] for change in result["changes"]] == [1, 3]
+    assert result["changes"][0]["removed"] == ["price 10"] and result["changes"][0]["added"] == ["price 12"]
+    assert result["changes"][1]["only_in"] == "first"
+
+    same = client.post("/tools/compare", json={"first": first, "second": first}).json()
+    assert same["identical"] is True and same["changes"] == []

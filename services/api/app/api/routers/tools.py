@@ -4,7 +4,14 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.recording import RecordedRoute
 from app.api.routers.uploads import resolve_stored_file
-from app.schemas.tools import BlankPagesRequest, FillFormRequest, MetadataRequest, TargetSizeRequest
+from app.schemas.tools import (
+    BlankPagesRequest,
+    CompareRequest,
+    FillFormRequest,
+    MetadataRequest,
+    StampRequest,
+    TargetSizeRequest,
+)
 from app.services import power_service
 
 
@@ -18,6 +25,21 @@ def _execute(function, *args, **kwargs):
         raise HTTPException(404, str(error)) from error
     except (ValueError, OSError) as error:
         raise HTTPException(422, str(error)) from error
+
+
+@router.post("/compare")
+def compare(request: CompareRequest):
+    return _execute(power_service.compare, resolve_stored_file(request.first), resolve_stored_file(request.second))
+
+
+@router.post("/{filename}/stamp")
+def stamp(filename: str, request: StampRequest):
+    return _execute(power_service.stamp, resolve_stored_file(filename), **request.model_dump())
+
+
+@router.post("/{filename}/to-grayscale")
+def to_grayscale(filename: str):
+    return _execute(power_service.to_grayscale, resolve_stored_file(filename))
 
 
 @router.post("/{filename}/remove-blank-pages")

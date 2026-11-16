@@ -28,6 +28,8 @@ export const OPERATION_NAMES: Record<string, string> = {
   unlock: "Unlocked",
   redact: "Redacted",
   sanitize: "Cleaned",
+  stamp: "Stamped",
+  "to-grayscale": "Made greyscale",
   "remove-blank-pages": "Blank pages removed",
   "flatten-forms": "Form flattened",
   "fill-form": "Form filled",
@@ -82,5 +84,8 @@ export const TOOL_TARGETS: Record<string, StudioTarget | "files"> = {
   redact: { tool: "protect", mode: "redact" },
   sanitize: { tool: "clean" },
   "remove-blank-pages": { tool: "pages" },
+  stamp: { tool: "add", mode: "stamp" },
+  grayscale: { tool: "clean" },
+  compare: { tool: "clean" },
   "fill-form": { tool: "add", mode: "form" },
 };

@@ -26,7 +26,7 @@ from app.schemas.security import (
     SanitizePDFRequest,
     UnlockPDFRequest,
 )
-from app.schemas.tools import BlankPagesRequest, FillFormRequest, MetadataRequest, TargetSizeRequest
+from app.schemas.tools import BlankPagesRequest, FillFormRequest, MetadataRequest, StampRequest, TargetSizeRequest
 from app.schemas.uploads import CompressRequest
 from app.services import conversion_service, pdf_service, power_service, security_service
 
@@ -203,6 +203,8 @@ _pdf_operation("split_at_blanks", "Split at blank pages", "Pages", "Cut a stack 
 _pdf_operation("flatten_forms", "Flatten forms", "Forms", "Turn form fields into plain page content so they can no longer be changed.", NoSettings, lambda f, p: _pdf_result(power_service.flatten_forms(f)))
 _pdf_operation("fill_form", "Fill form", "Forms", "Fill in form fields by name, and optionally flatten them.", FillFormRequest, lambda f, p: _pdf_result(power_service.fill_form(f, p.values, p.flatten)))
 _pdf_operation("edit_metadata", "Document details", "Clean", "Set the title, author, subject and keywords.", MetadataRequest, lambda f, p: _pdf_result(power_service.edit_metadata(f, p.model_dump())))
+_pdf_operation("stamp", "Stamp", "Add to pages", "A bordered label such as APPROVED or CONFIDENTIAL.", StampRequest, lambda f, p: _pdf_result(power_service.stamp(f, **p.model_dump())))
+_pdf_operation("to_grayscale", "Greyscale", "Clean", "Turn colours and images grey; text stays text.", NoSettings, lambda f, p: _pdf_result(power_service.to_grayscale(f)))
 _pdf_operation("compress_to_target", "Make smaller than a size", "Optimize", "Try gentler levels first and stop at the first that fits the size.", TargetSizeRequest, lambda f, p: _pdf_result(power_service.compress_to_target(f, p.target_mb)))
 
 # ---------------------------------------------------------

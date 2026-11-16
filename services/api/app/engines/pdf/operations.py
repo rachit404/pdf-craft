@@ -499,6 +499,60 @@ def add_header_footer(
 
 
 # ---------------------------------------------------------
+# STAMP
+# ---------------------------------------------------------
+
+STAMP_POSITIONS = {"center", "top-left", "top-right", "bottom-left", "bottom-right"}
+
+
+def add_stamp(
+    path: Path,
+    output: Path,
+    text: str = "APPROVED",
+    color: str = "#C0392B",
+    position: str = "top-right",
+    size: int = 28,
+    rotation: int = -15,
+    pages: list[int] | None = None,
+) -> dict:
+    """A bordered label such as APPROVED or CONFIDENTIAL, optionally tilted."""
+    if not text.strip() or len(text) > 60:
+        raise ValueError("Stamp text must be 1 to 60 characters.")
+
+    if position not in STAMP_POSITIONS or not 10 <= size <= 80 or not -90 <= rotation <= 90:
+        raise ValueError("Invalid stamp position, size or angle.")
+
+    _latin_text(text)
+    ink = _hex_color(color)
+
+    def factory(number, total):
+        label = expand_tokens(text.strip(), number, total)
+
+        def draw(pdf, width, height):
+            font = "Helvetica-Bold"
+            text_width = pdf.stringWidth(label, font, size)
+            box_width, box_height = text_width + size, size * 1.7
+            margin = box_width / 2 + 24
+            x = {"center": width / 2, "top-left": margin, "bottom-left": margin}.get(position, width - margin)
+            y = {"center": height / 2, "top-left": height - box_height - 24, "top-right": height - box_height - 24}.get(position, box_height + 24)
+
+            pdf.saveState()
+            pdf.translate(x, y)
+            pdf.rotate(rotation)
+            pdf.setStrokeColor(ink)
+            pdf.setFillColor(ink)
+            pdf.setLineWidth(max(2, size / 10))
+            pdf.roundRect(-box_width / 2, -box_height / 2, box_width, box_height, size / 5, stroke=1, fill=0)
+            pdf.setFont(font, size)
+            pdf.drawCentredString(0, -size * 0.35, label)
+            pdf.restoreState()
+
+        return draw
+
+    return _apply_overlay(path, output, factory, pages, per_page=True)
+
+
+# ---------------------------------------------------------
 # BACKGROUND
 # ---------------------------------------------------------
 

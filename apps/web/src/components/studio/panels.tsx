@@ -5,6 +5,7 @@ import {
   Download,
   FileText,
   Loader2,
+  PenLine,
   RotateCcw,
   RotateCw,
   Scissors,
@@ -19,12 +20,15 @@ import { Input, Segmented } from "@/components/ui/controls";
 import { Notice } from "@/components/ui/blocks";
 import {
   applyOperation,
+  compareFiles,
   extractText,
   getFileDownloadUrl,
   getFormFields,
   getRegistry,
+  listFiles,
   runFlow,
   uploadFile,
+  type CompareResult,
   type ExtractedText,
   type FormField,
   type RedactionRegion,
@@ -32,6 +36,7 @@ import {
 import { formatSize } from "@/lib/format";
 import { formatPages } from "@/lib/pages";
 
+import SignaturePad from "./SignaturePad";
 import SchemaForm, { defaultsFor, type FieldHint, type Settings } from "./SchemaForm";
 import type { Studio } from "./useStudio";
 
@@ -408,6 +413,7 @@ function ImageForm({ studio, selection, pageNo, stage, patchStage, pageSize }: P
   const [uploading, setUploading] = useState(false);
   const [widthPercent, setWidthPercent] = useState(30);
   const [scope, setScope] = useState<"all" | "selected">("all");
+  const [signing, setSigning] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const pages = scope === "selected" ? (selection.length ? selection : [pageNo]) : undefined;
   const image = stage.image;
@@ -464,6 +470,19 @@ function ImageForm({ studio, selection, pageNo, stage, patchStage, pageSize }: P
         {uploading && <Loader2 className="size-4 animate-spin" />}
         {stored ? `Image: ${stored.label}` : "Choose a PNG or JPEG"}
       </Button>
+      {signing ? (
+        <SignaturePad
+          onCancel={() => setSigning(false)}
+          onDone={(file) => {
+            setSigning(false);
+            void choose(file);
+          }}
+        />
+      ) : (
+        <Button className="w-full" disabled={uploading} onClick={() => setSigning(true)}>
+          <PenLine className="size-4" strokeWidth={1.75} /> Draw a signature
+        </Button>
+      )}
 
       <Field label={`Width ${widthPercent}% of the page`}>
         <input
@@ -511,6 +530,89 @@ function ImageForm({ studio, selection, pageNo, stage, patchStage, pageSize }: P
       >
         Add image
       </ApplyButton>
+    </div>
+  );
+}
+
+const STAMPS = [
+  { text: "APPROVED", color: "#1E8449" },
+  { text: "DRAFT", color: "#7F8C8D" },
+  { text: "CONFIDENTIAL", color: "#C0392B" },
+  { text: "PAID", color: "#1E8449" },
+  { text: "COPY", color: "#2471A3" },
+  { text: "REVIEWED", color: "#2471A3" },
+];
+
+function StampForm({ studio, selection, pageNo }: PanelProps) {
+  const [text, setText] = useState("APPROVED");
+  const [color, setColor] = useState("#1E8449");
+  const [position, setPosition] = useState("top-right");
+  const [size, setSize] = useState(28);
+  const [rotation, setRotation] = useState(-15);
+  const [scope, setScope] = useState<"all" | "selected">("all");
+  const pages = scope === "selected" ? (selection.length ? selection : [pageNo]) : undefined;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-1.5">
+        {STAMPS.map((stamp) => (
+          <button
+            key={stamp.text}
+            type="button"
+            onClick={() => {
+              setText(stamp.text);
+              setColor(stamp.color);
+            }}
+            style={{ color: stamp.color, borderColor: stamp.color }}
+            className="rounded-ctl border-2 px-2 py-0.5 text-[0.72rem] font-bold tracking-wide hover:bg-hover"
+          >
+            {stamp.text}
+          </button>
+        ))}
+      </div>
+      <Field label="Text">
+        <Input value={text} maxLength={60} onChange={(event) => setText(event.target.value)} />
+      </Field>
+      <div className="flex items-center justify-between">
+        <span className="text-[0.85rem] font-medium">Colour</span>
+        <input type="color" value={color.toLowerCase()} onChange={(event) => setColor(event.target.value.toUpperCase())} className="h-8 w-12 cursor-pointer rounded-ctl border border-line-strong bg-surface p-0.5" />
+      </div>
+      <Field label="Where">
+        <select value={position} onChange={(event) => setPosition(event.target.value)} className="h-8 w-full rounded-ctl border border-line-strong bg-surface px-2 text-[0.85rem]">
+          <option value="top-right">Top right</option>
+          <option value="top-left">Top left</option>
+          <option value="bottom-right">Bottom right</option>
+          <option value="bottom-left">Bottom left</option>
+          <option value="center">Centre</option>
+        </select>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={`Size ${size}`}>
+          <input type="range" min={10} max={80} value={size} onChange={(event) => setSize(Number(event.target.value))} className="w-full accent-[var(--accent)]" />
+        </Field>
+        <Field label={`Angle ${rotation}\u00b0`}>
+          <input type="range" min={-45} max={45} value={rotation} onChange={(event) => setRotation(Number(event.target.value))} className="w-full accent-[var(--accent)]" />
+        </Field>
+      </div>
+      <Segmented
+        label="Apply to"
+        value={scope}
+        onChange={setScope}
+        options={[
+          { id: "all", label: "All pages" },
+          { id: "selected", label: selection.length ? "Selected pages" : `Page ${pageNo}` },
+        ]}
+      />
+      <ApplyButton
+        busy={studio.busy}
+        disabled={!text.trim()}
+        onClick={async () => {
+          if (await studio.apply("stamp", { text, color, position, size, rotation, pages })) toast.success("Stamp added");
+        }}
+      >
+        Add stamp
+      </ApplyButton>
+      <p className="text-[0.75rem] text-fg-subtle">{TOKEN_HELP}</p>
     </div>
   );
 }
@@ -603,6 +705,7 @@ export function AddPanel(props: PanelProps) {
     { id: "watermark", label: "Watermark" },
     { id: "text", label: "Text" },
     { id: "image", label: "Image" },
+    { id: "stamp", label: "Stamp" },
     { id: "numbers", label: "Numbers" },
     { id: "header", label: "Header" },
     { id: "background", label: "Colour" },
@@ -637,6 +740,7 @@ export function AddPanel(props: PanelProps) {
       {mode === "crop" && (
         <OperationForm key={mode} studio={studio} operation="crop" label="Crop pages" pageCount={pageCount} hints={{ left: { label: "Left (pt)" }, bottom: { label: "Bottom (pt)" }, right: { label: "Right (pt)" }, top: { label: "Top (pt)" } }} success="Pages cropped" />
       )}
+      {mode === "stamp" && <StampForm key={mode} {...props} />}
       {mode === "form" && <FormForm key={studio.current} studio={studio} />}
       {mode === "text" && <TextForm key={mode} {...props} />}
       {mode === "image" && <ImageForm key={mode} {...props} />}
@@ -943,6 +1047,98 @@ export function OptimizePanel({ studio }: PanelProps) {
   );
 }
 
+function ComparePanel({ studio }: { studio: Studio }) {
+  const [others, setOthers] = useState<{ name: string; label: string }[]>([]);
+  const [other, setOther] = useState("");
+  const [result, setResult] = useState<CompareResult | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    listFiles()
+      .then((files) => {
+        if (cancelled) return;
+
+        setOthers(
+          files
+            .filter((file) => file.kind === "pdf" && file.available && file.name !== studio.current)
+            .map((file) => ({ name: file.name, label: file.original_name })),
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [studio.current]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[0.8rem] font-semibold text-fg-muted">Compare with another PDF</h3>
+      <select
+        value={other}
+        onChange={(event) => {
+          setOther(event.target.value);
+          setResult(null);
+        }}
+        aria-label="PDF to compare with"
+        className="h-8 w-full rounded-ctl border border-line-strong bg-surface px-2 text-[0.85rem]"
+      >
+        <option value="">Choose a file</option>
+        {others.map((file) => (
+          <option key={file.name} value={file.name}>
+            {file.label}
+          </option>
+        ))}
+      </select>
+      <Button
+        className="w-full"
+        disabled={!other || busy}
+        onClick={async () => {
+          setBusy(true);
+
+          try {
+            setResult(await compareFiles(other, studio.current));
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Could not compare.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy && <Loader2 className="size-4 animate-spin" />} Compare
+      </Button>
+      {result && (
+        <div className="space-y-2 text-[0.8rem]">
+          <p className="font-medium">
+            {result.identical ? "The text is identical." : `${result.changes.length} page${result.changes.length === 1 ? "" : "s"} differ${result.truncated ? " (first 50 shown)" : ""}.`}
+            <span className="ml-1 font-normal text-fg-subtle">Other file: {result.pages_first} p, this one: {result.pages_second} p.</span>
+          </p>
+          <ul className="max-h-60 space-y-2 overflow-y-auto">
+            {result.changes.map((change) => (
+              <li key={change.page} className="rounded-ctl border border-line bg-surface p-2">
+                <p className="mb-1 font-mono text-[0.72rem] text-fg-subtle">
+                  Page {change.page}
+                  {change.only_in === "first" && " (only in the other file)"}
+                  {change.only_in === "second" && " (only in this file)"}
+                </p>
+                {change.removed.map((line, index) => (
+                  <p key={`r${index}`} className="text-danger">&minus; {line}</p>
+                ))}
+                {change.added.map((line, index) => (
+                  <p key={`a${index}`} className="text-ok">+ {line}</p>
+                ))}
+              </li>
+            ))}
+          </ul>
+          <p className="text-fg-subtle">Red lines are only in the other file, green lines only in this one.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailsEditor({ studio }: { studio: Studio }) {
   const meta = studio.info?.metadata;
   const [details, setDetails] = useState({
@@ -1016,6 +1212,21 @@ export function CleanPanel({ studio, pageCount }: PanelProps) {
       />
       <div className="border-t border-line pt-4">
         <DetailsEditor key={studio.current} studio={studio} />
+      </div>
+      <div className="space-y-2 border-t border-line pt-4">
+        <h3 className="text-[0.8rem] font-semibold text-fg-muted">Colours</h3>
+        <Button
+          className="w-full"
+          disabled={studio.busy}
+          onClick={async () => {
+            if (await studio.apply("to_grayscale", {})) toast.success("Turned grey");
+          }}
+        >
+          Make greyscale
+        </Button>
+      </div>
+      <div className="border-t border-line pt-4">
+        <ComparePanel studio={studio} />
       </div>
     </div>
   );
