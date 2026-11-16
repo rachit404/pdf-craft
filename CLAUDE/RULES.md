@@ -22,7 +22,7 @@
 ## Code conventions
 - Preserve architecture: one FastAPI backend (routers → services → engines), one Next.js frontend. No new frameworks/DBs/microservices.
 - Complete files over snippets; TypeScript types; API calls only in `lib/api.ts`; handle loading/success/error; validate input client-side AND server-side (pydantic).
-- Shared UI: when 3+ workflows need the same piece (upload dropzone, result/download card, error banner), extract ONE shared component in `components/workflows/shared/` and use it for new workflows only. Do not rewrite the 8 existing ones.
+- Shared UI: reuse `components/ui/` and `components/studio/` pieces; extract ONE shared component when 3+ places need the same thing.
 - Security: validate uploads by content + size; safe filenames; no path traversal; clean temp files; stream large files; redaction must truly remove content; permissions are advisory flags.
 - Existing decisions: lossless compression (pikepdf) only; PDF→PPTX via page images; PDF→XLSX best-effort tables; PDF→DOCX best-effort layout.
 - No external network calls from either app (privacy). No CDN fonts, analytics, telemetry, remote APIs.

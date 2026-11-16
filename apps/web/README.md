@@ -19,10 +19,8 @@ read when the app is built or the dev server starts).
 ## Structure
 
 ```
-src/app/                       page, layout, global CSS (design tokens, legacy colour bridge)
-src/components/workflows/      one screen per tool
-  registry.tsx                   tool id -> screen, each loaded on demand
-  shared/                        upload area, page preview, result card, hooks
+src/app/                       page, layout, global CSS (design tokens)
+src/components/studio/         the Studio: page grid, page preview, tool panels, schema-driven forms, versions
 src/components/layout/         app shell (sidebar, top bar) and the Ctrl K command palette
 src/components/dashboard/      tools page and files page
 src/components/settings/       settings, theme picker and the custom theme creator
@@ -36,11 +34,12 @@ src/lib/themes.ts              built-in themes, theme derivation and contrast ch
 
 ## Adding a tool
 
-1. Add an entry to `src/lib/tools.ts` (id, name, category, icon).
-2. Write the screen in `src/components/workflows/`. Copy a small one such as
-   `AddTextWorkflow.tsx` and use the building blocks in `shared/`.
-3. Add its API call to `src/lib/api.ts`.
-4. Register it in `src/components/workflows/registry.tsx`.
+1. Add the operation to the backend registry (`services/api/app/registry`).
+2. Add an entry to `src/lib/tools.ts` (id, name, category, icon).
+3. Add its endpoint to `OPERATION_ROUTES` in `src/lib/api.ts` and a name in `src/lib/operations.ts`,
+   plus a `TOOL_TARGETS` entry saying which Studio panel opens it.
+4. Its settings form is generated from the registry schema. Add a panel in
+   `src/components/studio/panels.tsx` only if it needs custom interaction.
 
 Next.js 16 differs from older versions; consult `node_modules/next/dist/docs/`
 before changing routing or configuration.

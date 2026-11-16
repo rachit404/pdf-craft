@@ -18,7 +18,7 @@ import {
 } from "@/lib/api";
 
 import Button from "@/components/ui/Button";
-import { ErrorBanner, inputClass } from "@/components/workflows/shared/ui";
+import { ErrorBanner, inputClass } from "@/components/ui/blocks";
 
 interface AuthContextValue {
   /** True when the server asks for a password (so a sign-out makes sense). */

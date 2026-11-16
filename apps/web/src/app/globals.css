@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
-@import "./legacy-bridge.css";
 
 /*
  * Design tokens. A theme sets these variables on <html> (see lib/themes.ts);

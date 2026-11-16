@@ -7,7 +7,7 @@ import type { ToolCategory } from "@/lib/tools";
 /** Where the user is. Kept in the address bar so Back and bookmarks work. */
 export type Route =
   | { name: "tools"; category: ToolCategory }
-  | { name: "tool"; id: string }
+  | { name: "studio"; file: string; tool?: string; mode?: string }
   | { name: "files" }
   | { name: "settings" };
 
@@ -19,9 +19,12 @@ const CATEGORY_SLUGS: Record<string, ToolCategory> = {
 };
 
 export function parseRoute(hash: string): Route {
-  const [section, detail] = hash.replace(/^#\/?/, "").split("/");
+  const [section, detail, third, fourth] = hash.replace(/^#\/?/, "").split("/");
 
-  if (section === "tool" && detail) return { name: "tool", id: detail };
+  if (section === "studio" && detail) {
+    return { name: "studio", file: decodeURIComponent(detail), tool: third, mode: fourth };
+  }
+
   if (section === "files") return { name: "files" };
   if (section === "settings") return { name: "settings" };
 
@@ -30,8 +33,8 @@ export function parseRoute(hash: string): Route {
 
 export function routeToHash(route: Route): string {
   switch (route.name) {
-    case "tool":
-      return `#/tool/${route.id}`;
+    case "studio":
+      return `#/studio/${encodeURIComponent(route.file)}${route.tool ? `/${route.tool}${route.mode ? `/${route.mode}` : ""}` : ""}`;
     case "files":
       return "#/files";
     case "settings":

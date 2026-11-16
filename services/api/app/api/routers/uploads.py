@@ -268,10 +268,13 @@ def preview_pdf_page(
     stored_filename: str,
     page: int,
     width: int = Query(900, ge=200, le=1600),
+    as_displayed: bool = False,
 ) -> Response:
     """Render a page as JPEG. X-Page-Width/Height give its size in PDF points."""
     try:
-        rendered = preview_document_page(resolve_stored_file(stored_filename), page, width)
+        rendered = preview_document_page(
+            resolve_stored_file(stored_filename), page, width, as_displayed
+        )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except RuntimeError as exc:

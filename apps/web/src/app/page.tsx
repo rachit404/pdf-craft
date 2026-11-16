@@ -5,8 +5,9 @@ import FilesPage from "@/components/dashboard/FilesPage";
 import ToolsPage from "@/components/dashboard/ToolsPage";
 import AppShell from "@/components/layout/AppShell";
 import SettingsPage from "@/components/settings/SettingsPage";
-import { workflows } from "@/components/workflows/registry";
-import { useRoute, type Route } from "@/lib/route";
+import StudioPage from "@/components/studio/StudioPage";
+import { launchTool } from "@/lib/launch";
+import { useRoute } from "@/lib/route";
 
 export default function Home() {
   return (
@@ -18,23 +19,21 @@ export default function Home() {
 
 function Dashboard() {
   const [route, navigate] = useRoute();
-  const toolsHome: Route = { name: "tools", category: "All tools" };
-
-  const Workflow = route.name === "tool" ? workflows[route.id] : undefined;
+  const openTool = (id: string) => void launchTool(id, navigate);
 
   return (
-    <AppShell route={route} navigate={navigate}>
-      {route.name === "files" ? (
-        <FilesPage />
+    <AppShell route={route} navigate={navigate} onOpenTool={openTool}>
+      {route.name === "studio" ? (
+        <StudioPage key={route.file} file={route.file} tool={route.tool} mode={route.mode} navigate={navigate} />
+      ) : route.name === "files" ? (
+        <FilesPage navigate={navigate} />
       ) : route.name === "settings" ? (
         <SettingsPage onOpenFiles={() => navigate({ name: "files" })} />
-      ) : Workflow ? (
-        <Workflow onBack={() => navigate(toolsHome)} />
       ) : (
         <ToolsPage
-          category={route.name === "tools" ? route.category : "All tools"}
+          category={route.category}
           onCategoryChange={(category) => navigate({ name: "tools", category })}
-          onOpenTool={(id) => navigate({ name: "tool", id })}
+          onOpenTool={openTool}
         />
       )}
     </AppShell>

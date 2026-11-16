@@ -146,5 +146,7 @@ def image_document(
     )
 
 
-def preview_document_page(path: Path, page: int, width: int) -> dict:
-    return render_page(path, page, width)
+def preview_document_page(
+    path: Path, page: int, width: int, as_displayed: bool = False
+) -> dict:
+    return render_page(path, page, width, as_displayed)

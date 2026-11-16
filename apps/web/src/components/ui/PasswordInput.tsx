@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
-import { inputClass } from "./ui";
+import { inputClass } from "./blocks";
 
 interface PasswordInputProps {
   id: string;

@@ -28,6 +28,7 @@ import CommandPalette from "./CommandPalette";
 interface AppShellProps {
   route: Route;
   navigate: (route: Route) => void;
+  onOpenTool: (id: string) => void;
   children: ReactNode;
 }
 
@@ -74,22 +75,19 @@ function NavButton({
 function activeCategory(route: Route): ToolCategory | null {
   if (route.name === "tools") return route.category;
 
-  if (route.name === "tool") {
-    return tools.find((tool) => tool.id === route.id)?.category ?? null;
-  }
-
   return null;
 }
 
 /** Navigation, search and the page frame. */
-export default function AppShell({ route, navigate, children }: AppShellProps) {
+export default function AppShell({ route, navigate, onOpenTool, children }: AppShellProps) {
   const { authRequired, signOut } = useAuth();
   const { theme, select } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const category = activeCategory(route);
-  const onToolsPage = route.name === "tools" || route.name === "tool";
+  const onToolsPage = route.name === "tools";
+  const compact = route.name === "studio";
 
   function go(next: Route) {
     setMenuOpen(false);
@@ -167,10 +165,10 @@ export default function AppShell({ route, navigate, children }: AppShellProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-ground text-fg">
-      <aside className="hidden lg:block">{sidebar}</aside>
+      <aside className={compact ? "hidden" : "hidden lg:block"}>{sidebar}</aside>
 
       {menuOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className={cn("fixed inset-0 z-40", !compact && "lg:hidden")}>
           <button
             type="button"
             aria-label="Close menu"
@@ -186,7 +184,7 @@ export default function AppShell({ route, navigate, children }: AppShellProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className={compact ? "" : "lg:hidden"}
             aria-label="Open menu"
             onClick={() => setMenuOpen(true)}
           >
@@ -220,10 +218,10 @@ export default function AppShell({ route, navigate, children }: AppShellProps) {
           </Button>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <main className={cn("min-h-0 flex-1", compact ? "overflow-hidden" : "overflow-y-auto")}>{children}</main>
       </div>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} navigate={navigate} />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} navigate={navigate} onOpenTool={onOpenTool} />
     </div>
   );
 }

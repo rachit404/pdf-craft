@@ -24,6 +24,8 @@ interface PagePreviewProps {
   onDrawRect?: (rect: { x0: number; y0: number; x1: number; y1: number }) => void;
   /** Colour multiplied over the page to approximate a background fill. */
   tint?: string;
+  /** Tailwind max-width class for the page. */
+  widthClass?: string;
   /**
    * Overlay drawn over the page. The wrapper establishes a container, so use
    * `cqw` units (1cqw = 1% of the page width) for sizes that scale with it.
@@ -46,6 +48,7 @@ export default function PagePreview({
   onPick,
   onDrawRect,
   tint,
+  widthClass = "max-w-md",
   children,
 }: PagePreviewProps) {
   const key = `${filename}:${page}`;
@@ -127,7 +130,7 @@ export default function PagePreview({
   }
 
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className={`mx-auto w-full ${widthClass}`}>
       <div
         onClick={handleClick}
         onPointerDown={(event) => {
@@ -147,7 +150,7 @@ export default function PagePreview({
           aspectRatio: current ? `${current.width} / ${current.height}` : "3 / 4",
           backgroundColor: tint ?? "#ffffff",
         }}
-        className={`relative overflow-hidden rounded-md border border-gray-200 shadow-sm ${
+        className={`relative overflow-hidden rounded-[2px] shadow-[0_0_0_1px_var(--line-strong)] ${
           onPick || onDrawRect ? "cursor-crosshair" : ""
         } ${onDrawRect ? "touch-none select-none" : ""}`}
       >
@@ -174,7 +177,7 @@ export default function PagePreview({
 
         {draft && (
           <div
-            className="pointer-events-none absolute border-2 border-dashed border-violet-600 bg-violet-500/20"
+            className="pointer-events-none absolute border-2 border-dashed border-accent bg-accent/20"
             style={{
               left: `${Math.min(draft.from.x, draft.to.x) * 100}%`,
               top: `${Math.min(draft.from.y, draft.to.y) * 100}%`,
@@ -185,19 +188,19 @@ export default function PagePreview({
         )}
 
         {!current && (
-          <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-gray-400">
+          <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-fg-subtle">
             {message || <Loader2 className="animate-spin" />}
           </div>
         )}
       </div>
 
       {pageCount > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-3 text-sm text-gray-600">
+        <div className="mt-3 flex items-center justify-center gap-3 text-sm text-fg-muted">
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1}
             aria-label="Previous page"
-            className="rounded-lg p-2 hover:bg-gray-100 disabled:opacity-30"
+            className="rounded-ctl p-2 hover:bg-hover disabled:opacity-30"
           >
             <ChevronLeft size={18} />
           </button>
@@ -210,7 +213,7 @@ export default function PagePreview({
             onClick={() => onPageChange(page + 1)}
             disabled={page >= pageCount}
             aria-label="Next page"
-            className="rounded-lg p-2 hover:bg-gray-100 disabled:opacity-30"
+            className="rounded-ctl p-2 hover:bg-hover disabled:opacity-30"
           >
             <ChevronRight size={18} />
           </button>

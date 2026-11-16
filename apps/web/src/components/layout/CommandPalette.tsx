@@ -14,6 +14,7 @@ interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   navigate: (route: Route) => void;
+  onOpenTool: (id: string) => void;
 }
 
 const itemClass =
@@ -27,6 +28,7 @@ export default function CommandPalette({
   open,
   onOpenChange,
   navigate,
+  onOpenTool,
 }: CommandPaletteProps) {
   const { themes, select } = useTheme();
   const { authRequired, signOut } = useAuth();
@@ -89,7 +91,7 @@ export default function CommandPalette({
               key={tool.id}
               value={`${tool.name} ${tool.category} ${tool.description}`}
               className={itemClass}
-              onSelect={() => run(() => navigate({ name: "tool", id: tool.id }))}
+              onSelect={() => run(() => onOpenTool(tool.id))}
             >
               <tool.icon className="size-4 shrink-0 text-fg-subtle" strokeWidth={1.75} />
               <span className="flex-1">{tool.name}</span>

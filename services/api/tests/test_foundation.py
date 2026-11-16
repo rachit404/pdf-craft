@@ -697,3 +697,23 @@ def test_results_are_registered_with_lineage(pdf_storage):
     assert (record["operation"], record["parent_name"], record["root_name"]) == ("compress", "a.pdf", "a.pdf")
     assert record["original_name"] == "report.pdf" and record["kind"] == "pdf"
     assert record["intermediate"] is False
+
+
+def test_thumbnails_can_show_pages_as_displayed(client, pdf_storage):
+    first = put(client, pdf_bytes("one"), "a.pdf")
+    rotated = client.post(
+        f"/operations/{first['name']}/rotate", json={"pages": [1], "degrees": 90}
+    ).json()["output_filename"]
+
+    def size(**params):
+        response = client.get(f"/uploads/{rotated}/pages/1/preview", params={"width": 400, **params})
+        assert response.status_code == 200
+        with Image.open(BytesIO(response.content)) as image:
+            return image.size
+
+    # Default: unrotated, so overlay coordinates stay valid (300 x 400 page).
+    unrotated = size()
+    assert unrotated[0] == 400 and abs(unrotated[1] - 533) <= 1
+    # As displayed: the rotated page is landscape.
+    width, height = size(as_displayed="true")
+    assert width > height

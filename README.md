@@ -201,8 +201,8 @@ after editing.
 Design decisions:
 
 - One modular backend and one front end; no microservices for standard PDF work.
-- Each tool is a self-contained screen registered in `apps/web/src/components/workflows/registry.tsx`
-  and loaded on demand, so adding a tool does not slow the others down.
+- Editing happens in one Studio workspace: every edit becomes a new version of the file, with undo,
+  so nothing is downloaded and uploaded again. Option forms are generated from the backend operation registry.
 - Every successful operation is recorded in the history automatically
   (`services/api/app/api/recording.py`), so new endpoints need no extra code.
 - Long-running conversions run off the event loop and are limited in number.
@@ -311,7 +311,7 @@ services/api/          FastAPI application
   app/schemas/           request and response models
   tests/                 pytest suite
 apps/web/              Next.js application
-  src/components/workflows/   one screen per tool, plus shared building blocks
+  src/components/studio/      the Studio: page grid, tool panels, versions
   src/lib/               API client and the tool list
 deploy/                install, update, password and uninstall scripts; systemd units; Caddy template; self-test
 docs/                  self-hosting guide

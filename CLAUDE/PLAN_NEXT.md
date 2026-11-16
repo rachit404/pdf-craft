@@ -179,13 +179,22 @@ Parts 6 and 7 are built now; 8-10 follow after the user verifies.
   export/import JSON). Stored per browser; applied before first paint (no flash).
 - **Shell:** compact top bar (Ctrl+K), left nav (Tools, Files, Settings), no hero banner. Tools page = grouped dense list.
   Files page = restyled history (table, expiry, download/delete, delete-all). Sign-in page restyled.
-- **Legacy bridge:** colour variables remapped so the 8 older screens follow every theme until Part 8 replaces them.
+- **Legacy bridge:** removed in Part 8 together with the old screens.
 - Done when: every screen readable in all three themes plus a custom one; no external requests; keyboard reachable.
 
-### Part 8 - Studio workspace  [next]
-Files home (drop zone + table + multi-select), document view with page thumbnails, versions timeline + undo/redo,
-Pages grid (reorder/delete/duplicate/rotate/extract/split on thumbnails), merged "Add to pages" panel, schema-driven option
-panels generated from `/registry/operations`, visible expiry and "Delete now". Old screens retired as each is replaced.
+### Part 8 - Studio workspace  [built, awaiting verification]
+- **Studio** (`#/studio/<file>[/<tool>[/<mode>]]`): header (name, version chip, undo/redo, expiry, Delete now, Download), tool rail
+  (Pages, Add, Convert, Protect, Smaller, Clean), page grid or large single page, options panel, versions bar.
+- Every edit is applied to the current version and becomes the next one, so there is no download and re-upload. Undo, redo and
+  jumping between versions are a client-side index over `/files/{name}/versions`; branches stay in Files.
+- Pages: select, shift-select, drag to reorder (dnd-kit), rotate, duplicate, delete, keep only, split every N (one-step flow).
+  Add: watermark, text and image (click the page to place), numbers, header and footer, colour, crop. Convert: Word, Excel,
+  PowerPoint, images, plain text. Protect: password, unlock, redact (drag boxes and terms). Smaller: three levels. Clean: details + sanitize.
+- Option forms are generated from the registry JSON Schema (`SchemaForm`), so a new registry entry needs only a hint, not a screen.
+- **Files home** replaces the old Files page: drop PDFs, images, Word or PowerPoint (images and Office files become PDFs), multi-select
+  merge / images to PDF / delete, click a PDF to open it. The Tools page and Ctrl K now launch Studio on the newest PDF.
+- Backend: thumbnails accept `as_displayed=true` so rotation shows in the grid.
+- Old workflow screens, `usePDFWorkflow`, the registry and `legacy-bridge.css` are deleted; unused API client functions pruned.
 Done when: the whole V1 set works without re-uploading and the user can say where every file is.
 
 ### Part 9 - Flows  [after 8]
