@@ -12,7 +12,7 @@ import time
 from app import storage
 from app.flows import cache as step_cache
 from app.flows import runs as flow_runs
-from app.services import history
+from app.services import history, search_index
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +54,9 @@ def sweep(max_age_seconds: float) -> int:
     history.forget_missing(*remaining)
     flow_runs.prune(cutoff)
     step_cache.prune(cutoff)
+
+    if search_index.available():
+        search_index.forget_missing()
     return deleted
 
 

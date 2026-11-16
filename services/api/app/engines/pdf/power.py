@@ -295,3 +295,159 @@ def compare_pdfs(first: Path, second: Path) -> dict[str, Any]:
             "changes": changes,
             "truncated": len(changes) >= MAX_CHANGED_PAGES,
         }
+
+
+# ---------------------------------------------------------
+# Annotations
+# ---------------------------------------------------------
+
+MAX_MARKS = 300
+MAX_TERMS = 50
+MARK_KINDS = ("highlight", "underline", "note", "box")
+DEFAULT_COLOURS = {"highlight": "#FFE14D", "underline": "#D32F2F", "note": "#F9A825", "box": "#D32F2F"}
+
+
+def _rgb(value: str | None, fallback: str) -> tuple[float, float, float]:
+    text = value if value and len(value) == 7 and value.startswith("#") else fallback
+
+    try:
+        return tuple(int(text[i : i + 2], 16) / 255 for i in (1, 3, 5))  # type: ignore[return-value]
+    except ValueError as error:
+        raise ValueError("Colours must use the #RRGGBB format.") from error
+
+
+def annotate(path: Path, output: Path, marks: list[dict[str, Any]], terms: list[str]) -> dict[str, Any]:
+    """Add highlights, underlines, notes and boxes as real PDF annotations.
+
+    Marks use points from the top-left of the unrotated page, like redaction areas.
+    `terms` are highlighted wherever they appear.
+    """
+    terms = [term.strip() for term in terms if term.strip()]
+
+    if not marks and not terms:
+        raise ValueError("Mark an area or give a word to highlight.")
+
+    if len(marks) > MAX_MARKS or len(terms) > MAX_TERMS:
+        raise ValueError(f"At most {MAX_MARKS} marks and {MAX_TERMS} words at a time.")
+
+    added = 0
+
+    with _open(path) as document:
+        for mark in marks:
+            kind = mark.get("kind", "highlight")
+            number = int(mark.get("page", 0))
+
+            if kind not in MARK_KINDS:
+                raise ValueError(f"Unknown mark type: {kind}.")
+
+            if not 1 <= number <= document.page_count:
+                raise ValueError(f"Page {number} does not exist.")
+
+            page = document[number - 1]
+            rect = pymupdf.Rect(mark["x0"], mark["y0"], mark["x1"], mark["y1"]).normalize()
+            colour = _rgb(mark.get("color"), DEFAULT_COLOURS[kind])
+
+            if kind == "note":
+                annotation = page.add_text_annot(rect.tl, str(mark.get("text") or "")[:1000], icon="Note")
+            elif rect.is_empty or rect.is_infinite:
+                raise ValueError("A marked area needs some size.")
+            elif kind == "highlight":
+                annotation = page.add_highlight_annot(rect)
+            elif kind == "underline":
+                annotation = page.add_underline_annot(rect)
+            else:
+                annotation = page.add_rect_annot(rect)
+                annotation.set_border(width=1.5)
+
+            annotation.set_colors(stroke=colour)
+            annotation.update()
+            added += 1
+
+        for term in terms:
+            for page in document:
+                for quad in page.search_for(term, quads=True):
+                    page.add_highlight_annot(quad).update()
+                    added += 1
+
+        if added == 0:
+            raise ValueError("None of those words were found.")
+
+        return {**_save(document, output), "annotations_added": added}
+
+
+# ---------------------------------------------------------
+# Straighten scans
+# ---------------------------------------------------------
+
+_SKEW_STEP = 0.25
+_SKEW_MIN = 0.3
+
+
+def estimate_skew(gray, max_angle: float = 10.0) -> float:
+    """Degrees to rotate a scanned page counter-clockwise to make its text lines level.
+
+    Uses the sharpness of the row profile: level text lines give tall, narrow peaks.
+    """
+    import cv2
+    import numpy as np
+
+    scale = 700 / max(gray.shape[1], 1)
+    small = cv2.resize(gray, None, fx=min(scale, 1.0), fy=min(scale, 1.0), interpolation=cv2.INTER_AREA)
+    _, ink = cv2.threshold(small, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    if ink.mean() < 0.4:  # next to nothing on the page
+        return 0.0
+
+    height, width = ink.shape
+    centre = (width / 2, height / 2)
+
+    def sharpness(angle: float) -> float:
+        matrix = cv2.getRotationMatrix2D(centre, angle, 1.0)
+        turned = cv2.warpAffine(ink, matrix, (width, height), flags=cv2.INTER_LINEAR, borderValue=0)
+        profile = turned.sum(axis=1, dtype=np.float64)
+
+        return float(np.sum(np.diff(profile) ** 2))
+
+    angles = np.arange(-max_angle, max_angle + _SKEW_STEP, _SKEW_STEP)
+    best = max(angles, key=sharpness)
+    finer = np.arange(best - _SKEW_STEP, best + _SKEW_STEP + 0.05, 0.05)
+
+    return round(float(max(finer, key=sharpness)), 2)
+
+
+def deskew(path: Path, output: Path, max_angle: float = 10.0) -> dict[str, Any]:
+    """Straighten tilted scanned pages. Pages with real text are left as they are."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError as error:  # pragma: no cover - installed with the app
+        raise ValueError("Straightening needs OpenCV, which is not installed.") from error
+
+    straightened = 0
+
+    with _open(path) as source, pymupdf.open() as result:
+        for index, page in enumerate(source):
+            if page.get_text().strip() or not page.get_images():
+                result.insert_pdf(source, from_page=index, to_page=index)
+                continue
+
+            pixmap = page.get_pixmap(dpi=150, colorspace=pymupdf.csGRAY, alpha=False)
+            gray = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(pixmap.height, pixmap.width)
+            angle = estimate_skew(gray, max_angle)
+
+            if abs(angle) < _SKEW_MIN:
+                result.insert_pdf(source, from_page=index, to_page=index)
+                continue
+
+            matrix = cv2.getRotationMatrix2D((pixmap.width / 2, pixmap.height / 2), angle, 1.0)
+            turned = cv2.warpAffine(gray, matrix, (pixmap.width, pixmap.height), flags=cv2.INTER_CUBIC, borderValue=255)
+            ok, encoded = cv2.imencode(".png", turned)
+
+            if not ok:
+                raise ValueError("Could not rebuild a straightened page.")
+
+            fresh = result.new_page(width=page.rect.width, height=page.rect.height)
+            fresh.insert_image(fresh.rect, stream=encoded.tobytes())
+            straightened += 1
+
+        return {**_save(result, output), "pages_straightened": straightened}

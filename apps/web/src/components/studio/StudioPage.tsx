@@ -40,6 +40,7 @@ import {
   PagesPanel,
   ProtectPanel,
   type PanelProps,
+  type Mark,
   type Stage,
 } from "./panels";
 import { useStudio } from "./useStudio";
@@ -83,6 +84,7 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
   const [pageNo, setPageNo] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize | null>(null);
   const [stage, setStage] = useState<Stage>(EMPTY_STAGE);
+  const [markKind, setMarkKind] = useState<Mark["kind"]>("highlight");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState("");
   const [now, setNow] = useState(() => Date.now());
@@ -98,7 +100,7 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
     setLastClicked(null);
     setPageNo((page) => Math.min(Math.max(page, 1), Math.max(pageCount, 1)));
     setViewPage((page) => (page && page > pageCount ? null : page));
-    setStage((existing) => ({ ...existing, pick: null, regions: [] }));
+    setStage((existing) => ({ ...existing, pick: null, regions: [], marks: [] }));
   }
 
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
 
   const patchStage = useCallback((patch: Partial<Stage>) => setStage((existing) => ({ ...existing, ...patch })), []);
 
-  const needsPage = (tool === "add" && (mode === "text" || mode === "image")) || (tool === "protect" && mode === "redact");
+  const needsPage = (tool === "add" && (mode === "text" || mode === "image" || mode === "mark")) || (tool === "protect" && mode === "redact");
   const single = needsPage || viewPage !== null;
 
   // Leaving a placing mode clears what was being placed.
@@ -169,6 +171,8 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
     order,
     onChanged: () => setSelected(new Set()),
     onOpenFile: (name) => navigate({ name: "studio", file: name }),
+    markKind,
+    onMarkKind: setMarkKind,
   };
 
   const replaySteps = studio.versions.slice(1, studio.index + 1).filter(replayable);
@@ -320,11 +324,17 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
                 onPageChange={(page) => setPageNo(Math.min(Math.max(page, 1), pageCount))}
                 onLoad={setPageSize}
                 widthClass="max-w-xl"
-                onPick={tool === "add" && (mode === "text" || mode === "image") ? (x, y) => patchStage({ pick: { x, y } }) : undefined}
+                onPick={
+                  tool === "add" && (mode === "text" || mode === "image" || (mode === "mark" && markKind === "note"))
+                    ? (x, y) => patchStage({ pick: { x, y } })
+                    : undefined
+                }
                 onDrawRect={
                   tool === "protect" && mode === "redact"
                     ? (rect) => patchStage({ regions: [...stage.regions, { id: Date.now(), page: pageNo, ...rect }] })
-                    : undefined
+                    : tool === "add" && mode === "mark" && markKind !== "note"
+                      ? (rect) => patchStage({ marks: [...stage.marks, { id: Date.now(), page: pageNo, kind: markKind, ...rect }] })
+                      : undefined
                 }
               >
                 {(size) => (
@@ -342,6 +352,31 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
                             height: `${((region.y1 - region.y0) / size.height) * 100}%`,
                           }}
                         />
+                      ))}
+                    {stage.marks
+                      .filter((mark) => mark.page === pageNo)
+                      .map((mark) => (
+                        <div
+                          key={mark.id}
+                          className={
+                            mark.kind === "highlight"
+                              ? "absolute bg-yellow-300/60 mix-blend-multiply"
+                              : mark.kind === "underline"
+                                ? "absolute border-b-2 border-red-600"
+                                : mark.kind === "box"
+                                  ? "absolute border-2 border-red-600"
+                                  : "absolute flex size-4 items-center justify-center rounded-sm bg-amber-400 text-[0.6rem] font-bold text-black"
+                          }
+                          style={{
+                            left: `${(mark.x0 / size.width) * 100}%`,
+                            top: `${(mark.y0 / size.height) * 100}%`,
+                            ...(mark.kind === "note"
+                              ? {}
+                              : { width: `${((mark.x1 - mark.x0) / size.width) * 100}%`, height: `${((mark.y1 - mark.y0) / size.height) * 100}%` }),
+                          }}
+                        >
+                          {mark.kind === "note" ? "i" : null}
+                        </div>
                       ))}
                     {stage.pick && stage.text && mode === "text" && (
                       <div

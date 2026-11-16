@@ -41,7 +41,20 @@ import SchemaForm, { defaultsFor, type FieldHint, type Settings } from "./Schema
 import type { Studio } from "./useStudio";
 
 /** What the centre of the Studio shows for the active panel. */
+export interface Mark {
+  id: number;
+  page: number;
+  kind: "highlight" | "underline" | "box" | "note";
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  text?: string;
+}
+
 export interface Stage {
+  /** Marks drawn for highlights, underlines, boxes and notes. */
+  marks: Mark[];
   /** Where the user clicked, in PDF points from the bottom-left. */
   pick: { x: number; y: number } | null;
   /** Text being placed. */
@@ -52,7 +65,7 @@ export interface Stage {
   regions: (RedactionRegion & { id: number })[];
 }
 
-export const EMPTY_STAGE: Stage = { pick: null, text: null, image: null, regions: [] };
+export const EMPTY_STAGE: Stage = { marks: [], pick: null, text: null, image: null, regions: [] };
 
 export interface PanelProps {
   studio: Studio;
@@ -69,6 +82,9 @@ export interface PanelProps {
   order: number[];
   /** Open another file in the Studio. */
   onOpenFile: (name: string) => void;
+  /** Which kind of mark the Mark up tab draws. */
+  markKind: Mark["kind"];
+  onMarkKind: (kind: Mark["kind"]) => void;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -408,6 +424,85 @@ function TextForm({ studio, selection, pageNo, stage, patchStage, pageSize }: Pa
   );
 }
 
+const MARK_KINDS: { id: Mark["kind"]; label: string }[] = [
+  { id: "highlight", label: "Highlight" },
+  { id: "underline", label: "Underline" },
+  { id: "box", label: "Box" },
+  { id: "note", label: "Note" },
+];
+
+function MarkForm({ studio, stage, patchStage, mode, pageNo, pageSize, markKind, onMarkKind }: PanelProps & { markKind: Mark["kind"]; onMarkKind: (kind: Mark["kind"]) => void }) {
+  const [terms, setTerms] = useState("");
+  const [note, setNote] = useState("");
+  const words = [...new Set(terms.split("\n").map((term) => term.trim()).filter(Boolean))];
+
+  // A note is placed with a click; the other marks are dragged out as areas.
+  useEffect(() => {
+    if (markKind !== "note" || !stage.pick || !pageSize) return;
+
+    const { x, y } = stage.pick;
+
+    patchStage({
+      pick: null,
+      marks: [...stage.marks, { id: Date.now(), page: pageNo, kind: "note", x0: x, y0: pageSize.height - y, x1: x, y1: pageSize.height - y, text: note }],
+    });
+  }, [stage.pick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="space-y-4">
+      <Segmented label="Mark with" value={markKind} onChange={onMarkKind} options={MARK_KINDS} />
+      {markKind === "note" ? (
+        <Field label="Note text">
+          <textarea value={note} rows={2} maxLength={1000} onChange={(event) => setNote(event.target.value)} className="w-full resize-none rounded-ctl border border-line-strong bg-surface px-2.5 py-2 text-[0.85rem]" />
+        </Field>
+      ) : null}
+      <p className="text-[0.78rem] text-fg-subtle">{markKind === "note" ? "Click the page where the note goes." : "Drag over the text or area you want to mark."} Marks on page {pageNo} show on the page.</p>
+
+      <div>
+        <h3 className="mb-1.5 text-[0.8rem] font-semibold text-fg-muted">Marks ({stage.marks.length})</h3>
+        {stage.marks.length === 0 ? (
+          <p className="text-[0.8rem] text-fg-subtle">None yet.</p>
+        ) : (
+          <ul className="max-h-32 space-y-1 overflow-y-auto">
+            {stage.marks.map((mark) => (
+              <li key={mark.id} className="flex items-center justify-between rounded-ctl bg-hover px-2.5 py-1 text-[0.8rem]">
+                <span className="truncate">{mark.kind} · page {mark.page}{mark.text ? ` · ${mark.text}` : ""}</span>
+                <button type="button" aria-label="Remove mark" onClick={() => patchStage({ marks: stage.marks.filter((item) => item.id !== mark.id) })} className="text-fg-subtle hover:text-danger">
+                  <X className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <Field label="Highlight these words everywhere (one per line)">
+        <textarea value={terms} rows={3} onChange={(event) => setTerms(event.target.value)} className="w-full resize-none rounded-ctl border border-line-strong bg-surface px-2.5 py-2 text-[0.85rem]" />
+      </Field>
+
+      <ApplyButton
+        busy={studio.busy}
+        disabled={mode !== "mark" || (stage.marks.length === 0 && words.length === 0)}
+        onClick={async () => {
+          const result = await studio.apply("annotate", {
+            marks: stage.marks.map(({ page, kind, x0, y0, x1, y1, text }) => ({ page, kind, x0, y0, x1, y1, text })),
+            terms: words,
+          });
+
+          if (result) {
+            toast.success(`${String(result.annotations_added)} mark${result.annotations_added === 1 ? "" : "s"} added`);
+            patchStage({ marks: [] });
+            setTerms("");
+          }
+        }}
+      >
+        Add to the PDF
+      </ApplyButton>
+      <p className="text-[0.75rem] text-fg-subtle">These are real PDF comments. Use Clean to remove them again.</p>
+    </div>
+  );
+}
+
 function ImageForm({ studio, selection, pageNo, stage, patchStage, pageSize }: PanelProps) {
   const [stored, setStored] = useState<{ name: string; label: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -706,6 +801,7 @@ export function AddPanel(props: PanelProps) {
     { id: "text", label: "Text" },
     { id: "image", label: "Image" },
     { id: "stamp", label: "Stamp" },
+    { id: "mark", label: "Mark up" },
     { id: "numbers", label: "Numbers" },
     { id: "header", label: "Header" },
     { id: "background", label: "Colour" },
@@ -741,6 +837,7 @@ export function AddPanel(props: PanelProps) {
         <OperationForm key={mode} studio={studio} operation="crop" label="Crop pages" pageCount={pageCount} hints={{ left: { label: "Left (pt)" }, bottom: { label: "Bottom (pt)" }, right: { label: "Right (pt)" }, top: { label: "Top (pt)" } }} success="Pages cropped" />
       )}
       {mode === "stamp" && <StampForm key={mode} {...props} />}
+      {mode === "mark" && <MarkForm key={mode} {...props} markKind={props.markKind} onMarkKind={props.onMarkKind} />}
       {mode === "form" && <FormForm key={studio.current} studio={studio} />}
       {mode === "text" && <TextForm key={mode} {...props} />}
       {mode === "image" && <ImageForm key={mode} {...props} />}
@@ -1212,6 +1309,21 @@ export function CleanPanel({ studio, pageCount }: PanelProps) {
       />
       <div className="border-t border-line pt-4">
         <DetailsEditor key={studio.current} studio={studio} />
+      </div>
+      <div className="space-y-2 border-t border-line pt-4">
+        <h3 className="text-[0.8rem] font-semibold text-fg-muted">Scans</h3>
+        <Button
+          className="w-full"
+          disabled={studio.busy}
+          onClick={async () => {
+            const result = await studio.apply("deskew", {});
+
+            if (result) toast.success(result.pages_straightened ? `${String(result.pages_straightened)} page${result.pages_straightened === 1 ? "" : "s"} straightened` : "Nothing needed straightening");
+          }}
+        >
+          Straighten tilted scans
+        </Button>
+        <p className="text-[0.75rem] text-fg-subtle">Only pages that are pictures are changed. Pages with real text are left alone.</p>
       </div>
       <div className="space-y-2 border-t border-line pt-4">
         <h3 className="text-[0.8rem] font-semibold text-fg-muted">Colours</h3>

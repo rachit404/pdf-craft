@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/controls";
 import {
   cancelRun,
   deleteSavedFlow,
+  downloadZip,
   getFileDownloadUrl,
   getRegistry,
   getRun,
@@ -482,7 +483,7 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
                   </h2>
                   <p className="mt-0.5 text-[0.8rem] text-fg-muted">
                     {selected.data.op === "source"
-                      ? "Choose the files this flow starts with."
+                      ? "Choose the files this flow starts with. Choose several to run the whole flow on each of them."
                       : selected.data.op === "output"
                         ? "Files reaching this step are what you keep."
                         : spec?.description}
@@ -586,6 +587,11 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
                 <p className="mb-1.5 text-[0.82rem] font-semibold">
                   {result.status === "done" ? `Result: ${result.files.length} file${result.files.length === 1 ? "" : "s"}` : result.status === "cancelled" ? "Stopped" : `Failed: ${result.error ?? ""}`}
                 </p>
+                {result.files.length > 1 && (
+                  <Button size="sm" className="mb-2" onClick={() => void downloadZip(result.files.map((file) => file.name)).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not make the ZIP."))}>
+                    <Download className="size-4" strokeWidth={1.75} /> Download all as a ZIP
+                  </Button>
+                )}
                 <ul className="flex flex-wrap gap-2">
                   {result.files.map((file) => (
                     <li key={file.name} className="flex items-center gap-2 rounded-ctl border border-line bg-surface px-2.5 py-1 text-[0.8rem]">

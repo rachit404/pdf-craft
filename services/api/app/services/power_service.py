@@ -42,6 +42,14 @@ def edit_metadata(path: Path, details: dict) -> dict:
     return _run(power.edit_metadata, path, details)
 
 
+def annotate(path: Path, marks: list[dict], terms: list[str]) -> dict:
+    return _run(power.annotate, path, marks, terms)
+
+
+def deskew(path: Path, max_angle: float) -> dict:
+    return _run(power.deskew, path, max_angle)
+
+
 def to_grayscale(path: Path) -> dict:
     return _run(power.to_grayscale, path)
 

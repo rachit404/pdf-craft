@@ -9,6 +9,7 @@ import { StatusDot } from "@/components/ui/controls";
 import {
   deleteAllFiles,
   deleteFile,
+  downloadZip,
   getFileDownloadUrl,
   getRetentionHours,
   imagesToPDF,
@@ -317,6 +318,11 @@ export default function FilesPage({ navigate }: FilesPageProps) {
               }
             >
               <FileImage className="size-4" strokeWidth={1.75} /> Make a PDF
+            </Button>
+          )}
+          {chosen.length >= 2 && (
+            <Button disabled={busy} onClick={() => void act(() => downloadZip(chosen.map((file) => file.name)))}>
+              <Download className="size-4" strokeWidth={1.75} /> Download as ZIP
             </Button>
           )}
           <Button

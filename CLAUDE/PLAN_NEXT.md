@@ -208,7 +208,7 @@ Done when: the whole V1 set works without re-uploading and the user can say wher
   small-screen layout (the page needs about 1000 px of width).
 Done when: a 6-node template runs end to end with per-node status and previews.
 
-### Part 10 - Power tools wave 1 + hardening  [first slice built, awaiting verification]
+### Part 10 - Power tools wave 1 + hardening  [built, awaiting verification]
 - New registry tools (so they work in Studio and Flows): Remove blank pages, Split at blank pages, Flatten forms, Fill form,
   Document details (title/author/subject/keywords), Make smaller than a size. REST under `/tools/{file}/...`, engine
   `engines/pdf/power.py`. Studio: Pages panel (blank pages), Add > Form, Smaller (size target), Clean (details editor).
@@ -224,7 +224,14 @@ Done when: a 6-node template runs end to end with per-node status and previews.
   Accessibility pass with axe-core on every route and Studio tab in light and dark: 0 violations after fixes (form labels,
   names for icon-only buttons, a heading per screen, accent-on-soft contrast, stamp presets). Performance: initial JS about
   259 KB gzipped, the flow canvas (React Flow) loads only when Flows is opened (about 90 KB).
-- Not yet: annotate, deskew, FTS5 index (search is a live scan), batch runs.
+- Final slice: **Mark up** (Add > Mark up: highlight, underline, box by dragging, notes by clicking, plus highlight words
+  everywhere; real PDF annotations via `POST /tools/{f}/annotate`, registry `annotate`), **Straighten scans** (`deskew`, row-profile
+  skew estimate with OpenCV, only picture-only pages are rebuilt), **full-text search index** (SQLite FTS5 tables `page_text` and
+  `indexed_files`, built lazily on first search, tidied by the retention sweep, live scan kept for other databases), and
+  **batch**: choose several files in a flow's first step to run it on each, then "Download all as a ZIP"
+  (`POST /files/zip`, also on Files for a selection). Registry now has 36 operations; backend 291 tests.
+- Part 10 is complete. Ideas left for later: freehand drawing annotations, visual (pixel) compare, hot folders and scheduled
+  flows (Wave 3), OCR (V2).
 
 ### Later (not scheduled)
 V2 local OCR and AI (section 7), then the commercial track (section 8). Revisit after Part 10.

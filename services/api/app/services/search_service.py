@@ -4,7 +4,7 @@ import time
 
 import pymupdf
 
-from app.services import file_store
+from app.services import file_store, search_index
 
 MAX_FILES = 100
 MAX_HITS = 50
@@ -21,11 +21,19 @@ def _snippet(text: str, start: int, length: int) -> str:
 
 
 def search(owner: str, query: str) -> dict:
+    """Find a word or phrase: through the full-text index when there is one, else by scanning."""
+    if len(query.strip()) < 2:
+        raise ValueError("Type at least two characters.")
+
+    if search_index.available():
+        return search_index.search(owner, query)
+
+    return scan(owner, query)
+
+
+def scan(owner: str, query: str) -> dict:
     """Look through the newest PDFs, page by page, for a word or phrase."""
     needle = query.strip().lower()
-
-    if len(needle) < 2:
-        raise ValueError("Type at least two characters.")
 
     deadline = time.monotonic() + TIME_BUDGET_SECONDS
     hits: list[dict] = []

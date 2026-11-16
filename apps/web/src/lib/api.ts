@@ -228,6 +228,8 @@ const OPERATION_ROUTES: Record<string, (file: string) => string> = {
   unlock: (f) => `/security/${f}/unlock`,
   redact: (f) => `/security/${f}/redact`,
   sanitize: (f) => `/security/${f}/sanitize`,
+  annotate: (f) => `/tools/${f}/annotate`,
+  deskew: (f) => `/tools/${f}/deskew`,
   stamp: (f) => `/tools/${f}/stamp`,
   to_grayscale: (f) => `/tools/${f}/to-grayscale`,
   remove_blank_pages: (f) => `/tools/${f}/remove-blank-pages`,
@@ -517,4 +519,23 @@ export async function compareFiles(first: string, second: string): Promise<Compa
       body: JSON.stringify({ first, second }),
     }),
   );
+}
+
+/** Download several stored files as one ZIP. */
+export async function downloadZip(names: string[]): Promise<void> {
+  const response = await fetch(`${API_BASE}/files/zip`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ names }),
+  });
+
+  if (!response.ok) throw await readError(response);
+
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "pdf-craft-files.zip";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

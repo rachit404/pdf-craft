@@ -36,6 +36,30 @@ class StampRequest(BaseModel):
     pages: list[int] | None = Field(default=None, min_length=1, max_length=500)
 
 
+class MarkRequest(BaseModel):
+    page: int = Field(ge=1)
+    kind: str = Field(default="highlight", pattern=r"^(highlight|underline|note|box)$")
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+    text: str | None = Field(default=None, max_length=1000)
+    color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+
+
+class AnnotateRequest(BaseModel):
+    marks: list[MarkRequest] = Field(default_factory=list, max_length=300)
+    terms: list[str] = Field(default_factory=list, max_length=50)
+
+
+class DeskewRequest(BaseModel):
+    max_angle: float = Field(default=10, gt=0, le=20, title="Largest tilt to correct (degrees)")
+
+
+class ZipRequest(BaseModel):
+    names: list[str] = Field(min_length=1, max_length=200)
+
+
 class CompareRequest(BaseModel):
     first: str
     second: str

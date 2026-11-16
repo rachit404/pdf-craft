@@ -5,8 +5,10 @@ from fastapi import APIRouter, HTTPException
 from app.api.recording import RecordedRoute
 from app.api.routers.uploads import resolve_stored_file
 from app.schemas.tools import (
+    AnnotateRequest,
     BlankPagesRequest,
     CompareRequest,
+    DeskewRequest,
     FillFormRequest,
     MetadataRequest,
     StampRequest,
@@ -30,6 +32,16 @@ def _execute(function, *args, **kwargs):
 @router.post("/compare")
 def compare(request: CompareRequest):
     return _execute(power_service.compare, resolve_stored_file(request.first), resolve_stored_file(request.second))
+
+
+@router.post("/{filename}/annotate")
+def annotate(filename: str, request: AnnotateRequest):
+    return _execute(power_service.annotate, resolve_stored_file(filename), [mark.model_dump() for mark in request.marks], request.terms)
+
+
+@router.post("/{filename}/deskew")
+def deskew(filename: str, request: DeskewRequest):
+    return _execute(power_service.deskew, resolve_stored_file(filename), request.max_angle)
 
 
 @router.post("/{filename}/stamp")

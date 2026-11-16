@@ -1,5 +1,6 @@
 """The file library: everything stored, with where each file came from."""
 
+import tempfile
 import zipfile
 from pathlib import Path
 from uuid import uuid4
@@ -7,6 +8,7 @@ from uuid import uuid4
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from PIL import Image, UnidentifiedImageError
 
 from app import storage
@@ -14,6 +16,7 @@ from app.api.routers.conversions import MAIN_PARTS, _check_office_archive
 from app.api.routers.outputs import _download_name
 from app.config import MAX_IMAGE_BYTES, MAX_UPLOAD_BYTES
 from app.schemas.files import StoredFileResponse
+from app.schemas.tools import ZipRequest
 from app.services import file_store, search_service
 
 
@@ -128,6 +131,61 @@ def list_files(
         _response(record)
         for record in file_store.list_files(OWNER, kind, include_intermediate, limit)
     ]
+
+
+MAX_ZIP_BYTES = 500 * 1024 * 1024
+
+
+@router.post("/zip")
+def download_zip(request: ZipRequest) -> FileResponse:
+    """Several stored files in one ZIP, each named after its document and what was done to it."""
+    chosen = []
+
+    for name in dict.fromkeys(request.names):
+        path = file_store.locate(name)
+
+        if path is None:
+            raise HTTPException(404, "One of the files is gone.")
+
+        chosen.append((name, path))
+
+    if sum(path.stat().st_size for _, path in chosen) > MAX_ZIP_BYTES:
+        raise HTTPException(413, "These files are too large to zip together (limit 500 MB).")
+
+    handle = tempfile.NamedTemporaryFile(prefix="pdfcraft-", suffix=".zip", delete=False)
+    handle.close()
+    archive_path = Path(handle.name)
+    used: set[str] = set()
+
+    try:
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, path in chosen:
+                record = file_store.get(name)
+                base = record["original_name"] if record else name
+
+                if record and record["operation"]:
+                    base = f"{Path(base).stem}-{record['operation']}"
+
+                entry = _download_name(base, path)
+                stem, suffix = Path(entry).stem, Path(entry).suffix
+                number = 1
+
+                while entry in used:
+                    number += 1
+                    entry = f"{stem} ({number}){suffix}"
+
+                used.add(entry)
+                archive.write(path, entry)
+    except Exception:
+        archive_path.unlink(missing_ok=True)
+        raise
+
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename="pdf-craft-files.zip",
+        background=BackgroundTask(archive_path.unlink, missing_ok=True),
+    )
 
 
 @router.get("/search")
