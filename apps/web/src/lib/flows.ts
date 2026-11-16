@@ -185,3 +185,31 @@ export const TEMPLATES: Template[] = [
     definition: chain([{ op: "source", kind: "image" }, { op: "images_to_pdf" }, { op: "page_numbers" }, { op: "output" }]),
   },
 ];
+
+/** Operations that need a second file and so cannot be replayed from settings alone. */
+const NOT_REPLAYABLE = new Set(["add_image"]);
+
+export function replayable<T extends { operation?: string }>(step: T): step is T & { operation: string } {
+  return Boolean(step.operation) && !NOT_REPLAYABLE.has(step.operation as string);
+}
+
+/** A flow that repeats these edits on any PDF: source, each edit in order, result. */
+export function definitionFromSteps(steps: { operation: string; settings?: Record<string, unknown> }[]): FlowDefinitionJSON {
+  const nodes: FlowDefinitionJSON["nodes"] = [{ id: "n1", op: "source", params: { kind: "pdf" }, position: { x: 40, y: 140 } }];
+
+  steps.forEach((step, index) => {
+    nodes.push({
+      id: `n${index + 2}`,
+      op: step.operation,
+      params: Object.fromEntries(Object.entries(step.settings ?? {}).filter(([, value]) => value !== undefined)),
+      position: { x: 40 + (index + 1) * 250, y: 140 },
+    });
+  });
+
+  nodes.push({ id: `n${steps.length + 2}`, op: "output", params: {}, position: { x: 40 + (steps.length + 1) * 250, y: 140 } });
+
+  return {
+    nodes,
+    edges: nodes.slice(1).map((node, index) => ({ source: nodes[index].id, target: node.id })),
+  };
+}

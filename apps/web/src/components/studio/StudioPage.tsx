@@ -14,6 +14,7 @@ import {
   Shrink,
   Trash2,
   Undo2,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -21,7 +22,8 @@ import { toast } from "sonner";
 
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
-import { deleteFile, getFileDownloadUrl } from "@/lib/api";
+import { deleteFile, getFileDownloadUrl, saveFlow } from "@/lib/api";
+import { definitionFromSteps, replayable } from "@/lib/flows";
 import { formatSize, timeLeft } from "@/lib/format";
 import type { StudioTool } from "@/lib/operations";
 import type { Route } from "@/lib/route";
@@ -169,6 +171,20 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
     onOpenFile: (name) => navigate({ name: "studio", file: name }),
   };
 
+  const replaySteps = studio.versions.slice(1, studio.index + 1).filter(replayable);
+
+  async function saveAsFlow() {
+    try {
+      const stored = await saveFlow(`Edits from ${recordName}`.slice(0, 80), definitionFromSteps(replaySteps));
+
+      toast.success(`Saved as a flow with ${replaySteps.length} step${replaySteps.length === 1 ? "" : "s"}. Passwords are not kept.`, {
+        action: { label: "Open", onClick: () => navigate({ name: "flows", id: stored.id }) },
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the flow.");
+    }
+  }
+
   async function deleteNow() {
     try {
       for (const version of studio.versions) await deleteFile(version.name).catch(() => undefined);
@@ -233,13 +249,19 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
         <span className={cn("hidden font-mono text-[0.72rem] md:inline", left.soon ? "text-warn" : "text-fg-subtle")}>
           {studio.record?.expires_at ? `removed in ${left.text}` : "kept until deleted"}
         </span>
+        {replaySteps.length > 0 && (
+          <Button variant="ghost" size="sm" title="Repeat these edits on other files" aria-label="Save as flow" onClick={() => void saveAsFlow()}>
+            <Workflow className="size-4" strokeWidth={1.75} />
+            <span className="hidden md:inline">Save as flow</span>
+          </Button>
+        )}
         {confirmDelete ? (
           <>
             <Button variant="danger" size="sm" onClick={() => void deleteNow()}>Delete all versions</Button>
             <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
           </>
         ) : (
-          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
+          <Button variant="ghost" size="sm" aria-label="Delete now" onClick={() => setConfirmDelete(true)}>
             <Trash2 className="size-4" strokeWidth={1.75} />
             <span className="hidden sm:inline">Delete now</span>
           </Button>

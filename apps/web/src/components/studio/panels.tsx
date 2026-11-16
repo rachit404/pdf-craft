@@ -73,10 +73,10 @@ export interface PanelProps {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
+    <label className="block">
       <span className="mb-1.5 block text-[0.8rem] font-medium text-fg-muted">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -536,7 +536,7 @@ function ImageForm({ studio, selection, pageNo, stage, patchStage, pageSize }: P
 
 const STAMPS = [
   { text: "APPROVED", color: "#1E8449" },
-  { text: "DRAFT", color: "#7F8C8D" },
+  { text: "DRAFT", color: "#566573" },
   { text: "CONFIDENTIAL", color: "#C0392B" },
   { text: "PAID", color: "#1E8449" },
   { text: "COPY", color: "#2471A3" },
@@ -563,8 +563,8 @@ function StampForm({ studio, selection, pageNo }: PanelProps) {
               setText(stamp.text);
               setColor(stamp.color);
             }}
-            style={{ color: stamp.color, borderColor: stamp.color }}
-            className="rounded-ctl border-2 px-2 py-0.5 text-[0.72rem] font-bold tracking-wide hover:bg-hover"
+            style={{ borderColor: stamp.color }}
+            className="rounded-ctl border-2 px-2 py-0.5 text-[0.72rem] font-bold tracking-wide text-fg hover:bg-hover"
           >
             {stamp.text}
           </button>
@@ -573,10 +573,10 @@ function StampForm({ studio, selection, pageNo }: PanelProps) {
       <Field label="Text">
         <Input value={text} maxLength={60} onChange={(event) => setText(event.target.value)} />
       </Field>
-      <div className="flex items-center justify-between">
+      <label className="flex items-center justify-between">
         <span className="text-[0.85rem] font-medium">Colour</span>
         <input type="color" value={color.toLowerCase()} onChange={(event) => setColor(event.target.value.toUpperCase())} className="h-8 w-12 cursor-pointer rounded-ctl border border-line-strong bg-surface p-0.5" />
-      </div>
+      </label>
       <Field label="Where">
         <select value={position} onChange={(event) => setPosition(event.target.value)} className="h-8 w-full rounded-ctl border border-line-strong bg-surface px-2 text-[0.85rem]">
           <option value="top-right">Top right</option>

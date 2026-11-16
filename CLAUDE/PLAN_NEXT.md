@@ -219,8 +219,12 @@ Done when: a 6-node template runs end to end with per-node status and previews.
 - Second slice: Stamp (APPROVED/DRAFT/CONFIDENTIAL presets, colour, corner, angle, tokens; Add > Stamp), Draw a signature
   (canvas pad in Add > Image, placed like any image), Greyscale (`Page.recolor`, text stays text), Compare PDFs (text diff per
   page, `POST /tools/compare`, Clean panel). Registry now has 34 operations.
-- Not yet: annotate, deskew, FTS5 index (search is a live scan), batch runs,
-  "Save as flow" from Studio, accessibility pass, performance budget.
+- Third slice: **Save as flow** in the Studio header turns the edits made in this session into a flow (source, steps, result;
+  passwords never stored; "Add image" is skipped because it needs a second file), and `#/flows/<id>` opens a saved flow.
+  Accessibility pass with axe-core on every route and Studio tab in light and dark: 0 violations after fixes (form labels,
+  names for icon-only buttons, a heading per screen, accent-on-soft contrast, stamp presets). Performance: initial JS about
+  259 KB gzipped, the flow canvas (React Flow) loads only when Flows is opened (about 90 KB).
+- Not yet: annotate, deskew, FTS5 index (search is a live scan), batch runs.
 
 ### Later (not scheduled)
 V2 local OCR and AI (section 7), then the commercial track (section 8). Revisit after Part 10.

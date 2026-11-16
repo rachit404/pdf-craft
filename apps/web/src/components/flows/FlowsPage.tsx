@@ -75,7 +75,7 @@ function Menu({ label, icon, children }: { label: string; icon: ReactNode; child
   );
 }
 
-function Editor({ navigate }: { navigate: (route: Route) => void }) {
+function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId?: string }) {
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<StepNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<StepEdge>([]);
@@ -98,13 +98,23 @@ function Editor({ navigate }: { navigate: (route: Route) => void }) {
     getRegistry()
       .then((all) => alive.current && setSpecs(new Map(all.map((spec) => [spec.id, spec]))))
       .catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not load the tools."));
-    listSavedFlows().then((list) => alive.current && setSaved(list)).catch(() => undefined);
+    listSavedFlows()
+      .then((list) => {
+        if (!alive.current) return;
+
+        setSaved(list);
+
+        const wanted = openId ? list.find((flow) => flow.id === openId) : undefined;
+
+        if (wanted) load(fromDefinition(wanted.definition), wanted.name, wanted.id);
+      })
+      .catch(() => undefined);
     listFiles().then((list) => alive.current && setLibrary(list)).catch(() => undefined);
 
     return () => {
       alive.current = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const running = runId !== null;
   const selected = nodes.find((node) => node.selected);
@@ -601,10 +611,10 @@ function Editor({ navigate }: { navigate: (route: Route) => void }) {
 }
 
 /** Build a chain of steps on a canvas: each step hands its result to the next. */
-export default function FlowsPage({ navigate }: { navigate: (route: Route) => void }) {
+export default function FlowsPage({ navigate, openId }: { navigate: (route: Route) => void; openId?: string }) {
   return (
     <ReactFlowProvider>
-      <Editor navigate={navigate} />
+      <Editor navigate={navigate} openId={openId} />
     </ReactFlowProvider>
   );
 }

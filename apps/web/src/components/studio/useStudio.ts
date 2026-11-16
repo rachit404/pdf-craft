@@ -16,6 +16,9 @@ import { operationName } from "@/lib/operations";
 export interface Version {
   name: string;
   label: string;
+  /** Registry id and settings of the edit that made this version (only for edits made in this session). */
+  operation?: string;
+  settings?: Record<string, unknown>;
 }
 
 export interface StudioState {
@@ -102,7 +105,7 @@ export function useStudio(openedName: string) {
 
         setVersions((existing) => [
           ...existing.slice(0, index + 1),
-          { name: result.output_filename, label: label ?? operationName(operation) },
+          { name: result.output_filename, label: label ?? operationName(operation), operation, settings },
         ]);
         setIndex(index + 1);
 

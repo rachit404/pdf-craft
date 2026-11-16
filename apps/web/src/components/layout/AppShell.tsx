@@ -223,7 +223,10 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
           </Button>
         </header>
 
-        <main className={cn("min-h-0 flex-1", fullBleed ? "overflow-hidden" : "overflow-y-auto")}>{children}</main>
+        <main className={cn("min-h-0 flex-1", fullBleed ? "overflow-hidden" : "overflow-y-auto")}>
+          {fullBleed && <h1 className="sr-only">{compact ? "Studio" : "Flows"}</h1>}
+          {children}
+        </main>
       </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} navigate={navigate} onOpenTool={onOpenTool} />
