@@ -197,9 +197,15 @@ Parts 6 and 7 are built now; 8-10 follow after the user verifies.
 - Old workflow screens, `usePDFWorkflow`, the registry and `legacy-bridge.css` are deleted; unused API client functions pruned.
 Done when: the whole V1 set works without re-uploading and the user can say where every file is.
 
-### Part 9 - Flows  [after 8]
-React Flow canvas, step palette from the registry, inspector forms, Run / Run to here, per-node status + thumbnails,
-templates, saved flows (CRUD), import/export JSON, batch (many files -> ZIP), "Save as flow" from Studio, step cache.
+### Part 9 - Flows  [built, awaiting verification]
+- **Flows page** (`#/flows`, React Flow via `@xyflow/react`): palette from the registry (click or drag), join steps by dragging between dots,
+  connections are refused when the file kinds do not match, inspector with schema-driven settings, source steps pick stored files
+  or upload new ones, per-step status dot, duration, file count and first-page thumbnail, Run flow, Run to here, Stop,
+  problems listed before running (server validation), results with Open in Studio / Download.
+- **Saved flows:** `GET/POST/PUT/DELETE /flows/saved` (table `saved_flows`, positions kept, passwords never stored), open/save/delete in
+  the toolbar; export/import as JSON (passwords stripped); four templates.
+- Not done (moved to Part 10): batch (many files to a ZIP), step cache, "Save as flow" from Studio (edits do not record their settings yet),
+  small-screen layout (the page needs about 1000 px of width).
 Done when: a 6-node template runs end to end with per-node status and previews.
 
 ### Part 10 - Power tools wave 1 + hardening  [after 9]

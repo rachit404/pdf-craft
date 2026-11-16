@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from app.flows import runs
 from app.flows.definition import FlowDefinition, Issue, masked, validate
 from app.flows.executor import FlowError, run_flow
-from app.services import file_store
+from app.services import file_store, saved_flows
 
 
 router = APIRouter(prefix="/flows", tags=["Flows"])
@@ -50,6 +50,65 @@ def _with_files(run: dict) -> dict:
     """Attach the file records of a run's results."""
     run["files"] = [record for name in run["outputs"] if (record := file_store.get(name))]
     return run
+
+
+class SavedFlowRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    # Steps, connections and canvas positions. Extra fields (positions) are kept.
+    definition: dict
+
+
+def _checked_definition(request: SavedFlowRequest) -> dict:
+    """Refuse a definition the engine could not read; store it with passwords masked."""
+    try:
+        parsed = FlowDefinition.model_validate(request.definition)
+    except ValueError as error:
+        raise HTTPException(422, "That is not a valid flow.") from error
+
+    stored = dict(request.definition)
+    secret_free = masked(parsed)["nodes"]
+    positions = {node.get("id"): node.get("position") for node in request.definition.get("nodes", [])}
+
+    stored["nodes"] = [
+        {**node, **({"position": positions[node["id"]]} if positions.get(node["id"]) else {})}
+        for node in secret_free
+    ]
+    stored["edges"] = masked(parsed)["edges"]
+
+    return stored
+
+
+@router.get("/saved")
+def list_saved() -> list[dict]:
+    return saved_flows.list_flows(OWNER)
+
+
+@router.post("/saved", status_code=201)
+def save_flow(request: SavedFlowRequest) -> dict:
+    created = saved_flows.create(OWNER, request.name.strip(), _checked_definition(request))
+
+    if created is None:
+        raise HTTPException(409, f"You can keep up to {saved_flows.MAX_SAVED} saved flows.")
+
+    return created
+
+
+@router.put("/saved/{flow_id}")
+def update_saved(flow_id: str, request: SavedFlowRequest) -> dict:
+    updated = saved_flows.update(flow_id, OWNER, request.name.strip(), _checked_definition(request))
+
+    if updated is None:
+        raise HTTPException(404, "Saved flow not found.")
+
+    return updated
+
+
+@router.delete("/saved/{flow_id}")
+def delete_saved(flow_id: str) -> dict:
+    if not saved_flows.delete(flow_id, OWNER):
+        raise HTTPException(404, "Saved flow not found.")
+
+    return {"deleted": flow_id}
 
 
 @router.post("/validate")

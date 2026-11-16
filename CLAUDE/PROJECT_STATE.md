@@ -45,6 +45,10 @@ Storage model: client uploads â†’ server returns stored filename (uuid-based) â†
 ## Frontend status
 All 28 tools are reachable from the Studio (Part 8); the old one-screen-per-tool workflows are gone. Tools that start from several files (merge, images to PDF, Word/PowerPoint to PDF) live on the Files page.
 
+### Flows (Part 9)
+- `components/flows/FlowsPage.tsx` (canvas, palette, inspector, toolbar), `StepNodeView.tsx`, `lib/flows.ts` (canvas <-> server definition, templates, "run to here" = a step plus everything feeding it). Backend: `services/saved_flows.py`, `/flows/saved`.
+- Verified in a browser (isolated stack): template load, run with per-step status, results, save, Run to here, validation messages. Backend 258 tests, lint and build clean. Not verified: drag from palette, drawing a connection by hand, import, themes other than light, small screens.
+
 ### Frontend conventions
 - A tool is a registry entry (backend) + a catalogue entry in `lib/tools.ts` + a target in `lib/operations.ts` `TOOL_TARGETS` (which Studio panel and mode it opens) + a route in `OPERATION_ROUTES` in `lib/api.ts`. Simple settings forms come from `SchemaForm`; add a panel in `components/studio/panels.tsx` only for custom interaction.
 - Studio: `StudioPage` (layout), `useStudio` (versions, undo, apply), `PageGrid` (dnd-kit), `PagePreview` (large page, click/drag overlay, `cqw` units), `panels.tsx`, `SchemaForm`. Shared blocks in `components/ui/blocks.tsx`.

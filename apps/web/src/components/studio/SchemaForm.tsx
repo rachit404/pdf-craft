@@ -63,7 +63,7 @@ function PagesField({
       <Input
         value={text}
         disabled={disabled}
-        placeholder={`All pages, or e.g. 1-3, 5 (1 to ${pageCount})`}
+        placeholder={pageCount >= 100000 ? "All pages, or e.g. 1-3, 5" : `All pages, or e.g. 1-3, 5 (1 to ${pageCount})`}
         onChange={(event) => {
           setText(event.target.value);
           const parsed = event.target.value.trim()

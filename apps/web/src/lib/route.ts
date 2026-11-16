@@ -9,6 +9,7 @@ export type Route =
   | { name: "tools"; category: ToolCategory }
   | { name: "studio"; file: string; tool?: string; mode?: string }
   | { name: "files" }
+  | { name: "flows" }
   | { name: "settings" };
 
 const CATEGORY_SLUGS: Record<string, ToolCategory> = {
@@ -26,6 +27,7 @@ export function parseRoute(hash: string): Route {
   }
 
   if (section === "files") return { name: "files" };
+  if (section === "flows") return { name: "flows" };
   if (section === "settings") return { name: "settings" };
 
   return { name: "tools", category: CATEGORY_SLUGS[detail ?? ""] ?? "All tools" };
@@ -37,6 +39,8 @@ export function routeToHash(route: Route): string {
       return `#/studio/${encodeURIComponent(route.file)}${route.tool ? `/${route.tool}${route.mode ? `/${route.mode}` : ""}` : ""}`;
     case "files":
       return "#/files";
+    case "flows":
+      return "#/flows";
     case "settings":
       return "#/settings";
     case "tools":

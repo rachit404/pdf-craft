@@ -77,6 +77,9 @@ export default function CommandPalette({
           <Command.Item className={itemClass} onSelect={() => run(() => navigate({ name: "tools", category: "All tools" }))}>
             All tools
           </Command.Item>
+          <Command.Item className={itemClass} onSelect={() => run(() => navigate({ name: "flows" }))}>
+            Flows: chain tools together
+          </Command.Item>
           <Command.Item className={itemClass} onSelect={() => run(() => navigate({ name: "files" }))}>
             Files
           </Command.Item>

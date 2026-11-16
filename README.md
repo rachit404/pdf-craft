@@ -312,6 +312,7 @@ services/api/          FastAPI application
   tests/                 pytest suite
 apps/web/              Next.js application
   src/components/studio/      the Studio: page grid, tool panels, versions
+  src/components/flows/       the Flows canvas: chain tools without downloading in between
   src/lib/               API client and the tool list
 deploy/                install, update, password and uninstall scripts; systemd units; Caddy template; self-test
 docs/                  self-hosting guide

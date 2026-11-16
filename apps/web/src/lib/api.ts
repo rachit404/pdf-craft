@@ -312,6 +312,10 @@ export interface OperationSpec {
   label: string;
   category: string;
   description: string;
+  inputs: { name: string; kind: string; many: boolean; label: string }[];
+  /** Kind of every file the step produces. */
+  output: string;
+  mode: "each" | "combine";
   params_schema: {
     properties?: Record<string, JsonSchemaField>;
     required?: string[];
@@ -357,4 +361,92 @@ export async function imagesToPDF(names: string[]): Promise<OperationResult> {
       body: JSON.stringify({ filenames: names }),
     }),
   );
+}
+
+// ---------------------------------------------------------
+// Flows
+// ---------------------------------------------------------
+
+/** A flow as the server understands it, plus canvas positions that it only stores. */
+export interface FlowDefinitionJSON {
+  nodes: { id: string; op: string; params: Record<string, unknown>; label?: string | null; position?: { x: number; y: number } }[];
+  edges: { source: string; target: string; port?: string | null }[];
+}
+
+export interface NodeState {
+  status: "pending" | "running" | "done" | "error" | "skipped" | "cancelled";
+  duration?: number;
+  items?: string[];
+  error?: string;
+}
+
+export interface FlowRunDetail extends FlowRunInfo {
+  node_states: Record<string, NodeState>;
+}
+
+export interface FlowIssue {
+  node: string | null;
+  message: string;
+}
+
+export interface SavedFlow {
+  id: string;
+  name: string;
+  updated_at: string;
+  definition: FlowDefinitionJSON;
+}
+
+const jsonRequest = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+export async function validateFlow(definition: FlowDefinitionJSON): Promise<FlowIssue[]> {
+  const result = await handleResponse<{ issues: FlowIssue[] }>(
+    await fetch(`${API_BASE}/flows/validate`, jsonRequest("POST", definition)),
+  );
+
+  return result.issues;
+}
+
+export async function startRun(
+  definition: FlowDefinitionJSON,
+  inputs: Record<string, string[]>,
+): Promise<string> {
+  const started = await handleResponse<{ id: string }>(
+    await fetch(`${API_BASE}/flows/runs`, jsonRequest("POST", { definition, inputs })),
+  );
+
+  return started.id;
+}
+
+export async function getRun(id: string): Promise<FlowRunDetail> {
+  return handleResponse<FlowRunDetail>(await fetch(`${API_BASE}/flows/runs/${id}`));
+}
+
+export async function cancelRun(id: string): Promise<void> {
+  await handleResponse(await fetch(`${API_BASE}/flows/runs/${id}/cancel`, { method: "POST" }));
+}
+
+export async function listSavedFlows(): Promise<SavedFlow[]> {
+  return handleResponse<SavedFlow[]>(await fetch(`${API_BASE}/flows/saved`));
+}
+
+/** Create a saved flow, or replace one when `id` is given. */
+export async function saveFlow(
+  name: string,
+  definition: FlowDefinitionJSON,
+  id?: string,
+): Promise<SavedFlow> {
+  return handleResponse<SavedFlow>(
+    await fetch(
+      `${API_BASE}/flows/saved${id ? `/${id}` : ""}`,
+      jsonRequest(id ? "PUT" : "POST", { name, definition }),
+    ),
+  );
+}
+
+export async function deleteSavedFlow(id: string): Promise<void> {
+  await handleResponse(await fetch(`${API_BASE}/flows/saved/${id}`, { method: "DELETE" }));
 }

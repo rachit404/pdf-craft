@@ -134,3 +134,23 @@ class FlowRun(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class SavedFlow(Base):
+    """A flow the user keeps to run again, with its canvas layout."""
+
+    __tablename__ = "saved_flows"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    owner_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="local", index=True
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    # JSON: the steps (with passwords masked), connections and canvas positions.
+    definition: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )

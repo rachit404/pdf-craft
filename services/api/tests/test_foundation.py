@@ -717,3 +717,35 @@ def test_thumbnails_can_show_pages_as_displayed(client, pdf_storage):
     # As displayed: the rotated page is landscape.
     width, height = size(as_displayed="true")
     assert width > height
+
+
+def test_saved_flows_can_be_kept_changed_and_deleted(client):
+    definition = flow(
+        [
+            {**src(), "position": {"x": 10, "y": 20}},
+            step("p", "protect", user_password="secret1"),
+            {"id": "out", "op": "output"},
+        ],
+        [link("in", "p"), link("p", "out")],
+    )
+
+    created = client.post("/flows/saved", json={"name": "Lock it", "definition": definition})
+    assert created.status_code == 201
+    saved = created.json()
+    assert saved["definition"]["nodes"][0]["position"] == {"x": 10, "y": 20}
+    # The password is never stored.
+    assert "secret1" not in str(saved)
+
+    assert [item["id"] for item in client.get("/flows/saved").json()] == [saved["id"]]
+
+    renamed = client.put(f"/flows/saved/{saved['id']}", json={"name": "Lock", "definition": definition})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Lock"
+
+    assert client.delete(f"/flows/saved/{saved['id']}").status_code == 200
+    assert client.get("/flows/saved").json() == []
+    assert client.delete(f"/flows/saved/{saved['id']}").status_code == 404
+
+
+def test_saved_flows_refuse_nonsense(client):
+    assert client.post("/flows/saved", json={"name": "x", "definition": {"nodes": []}}).status_code == 422
+    assert client.post("/flows/saved", json={"name": "", "definition": {}}).status_code == 422

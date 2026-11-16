@@ -2,6 +2,7 @@
 
 import AuthGate from "@/components/auth/AuthGate";
 import FilesPage from "@/components/dashboard/FilesPage";
+import FlowsPage from "@/components/flows/FlowsPage";
 import ToolsPage from "@/components/dashboard/ToolsPage";
 import AppShell from "@/components/layout/AppShell";
 import SettingsPage from "@/components/settings/SettingsPage";
@@ -25,6 +26,8 @@ function Dashboard() {
     <AppShell route={route} navigate={navigate} onOpenTool={openTool}>
       {route.name === "studio" ? (
         <StudioPage key={route.file} file={route.file} tool={route.tool} mode={route.mode} navigate={navigate} />
+      ) : route.name === "flows" ? (
+        <FlowsPage navigate={navigate} />
       ) : route.name === "files" ? (
         <FilesPage navigate={navigate} />
       ) : route.name === "settings" ? (

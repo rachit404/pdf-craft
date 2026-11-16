@@ -9,6 +9,7 @@ import {
   Search,
   Settings,
   Sun,
+  Workflow,
   Wrench,
   X,
   type LucideIcon,
@@ -88,6 +89,7 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
   const category = activeCategory(route);
   const onToolsPage = route.name === "tools";
   const compact = route.name === "studio";
+  const fullBleed = compact || route.name === "flows";
 
   function go(next: Route) {
     setMenuOpen(false);
@@ -135,6 +137,9 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
           ))}
 
         <div className="pt-2">
+          <NavButton icon={Workflow} active={route.name === "flows"} onClick={() => go({ name: "flows" })}>
+            Flows
+          </NavButton>
           <NavButton icon={FolderOpen} active={route.name === "files"} onClick={() => go({ name: "files" })}>
             Files
           </NavButton>
@@ -218,7 +223,7 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
           </Button>
         </header>
 
-        <main className={cn("min-h-0 flex-1", compact ? "overflow-hidden" : "overflow-y-auto")}>{children}</main>
+        <main className={cn("min-h-0 flex-1", fullBleed ? "overflow-hidden" : "overflow-y-auto")}>{children}</main>
       </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} navigate={navigate} onOpenTool={onOpenTool} />
