@@ -168,11 +168,14 @@ def duplicate_pages(
     selected = _page_numbers(pages, len(reader.pages))
     writer = PdfWriter()
 
-    for page in reader.pages:
+    copies = set(selected)
+
+    for number, page in enumerate(reader.pages, start=1):
         writer.add_page(page)
 
-    for number in selected:
-        writer.add_page(reader.pages[number - 1])
+        # The copy sits directly after its original.
+        if number in copies:
+            writer.add_page(page)
 
     return _save(writer, output)
 

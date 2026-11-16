@@ -1,4 +1,13 @@
+import os
+import tempfile
 from pathlib import Path
+
+# Tests get their own database and no background cleanup. This must run
+# before the application is imported, because the engine is created then.
+os.environ["PDF_CRAFT_DATABASE_URL"] = (
+    "sqlite:///" + Path(tempfile.mkdtemp(prefix="pdf-craft-test-"), "test.db").as_posix()
+)
+os.environ["PDF_CRAFT_RETENTION_HOURS"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient

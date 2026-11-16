@@ -7,9 +7,16 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import ToolCard from "@/components/dashboard/ToolCard";
 
+import dynamic from "next/dynamic";
+
 import { workflows } from "@/components/workflows/registry";
 
 import { tools, type PDFTool, type ToolCategory } from "@/lib/tools";
+
+const HistoryView = dynamic(
+  () => import("@/components/dashboard/HistoryView"),
+  { ssr: false },
+);
 
 export default function Home() {
   const [activeCategory, setActiveCategory] =
@@ -18,6 +25,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<PDFTool | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const filteredTools = useMemo(() => {
     return tools.filter((tool) => {
@@ -51,6 +59,14 @@ export default function Home() {
 
   function handleBackToDashboard() {
     setSelectedTool(null);
+  }
+
+  if (showHistory) {
+    return (
+      <div className="min-h-screen bg-[#fafafa]">
+        <HistoryView onBack={() => setShowHistory(false)} />
+      </div>
+    );
   }
 
   if (selectedTool) {
@@ -95,6 +111,7 @@ export default function Home() {
       <Sidebar
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
+        onOpenHistory={() => setShowHistory(true)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

@@ -37,4 +37,8 @@ export const workflows: Record<string, ComponentType<WorkflowProps>> = {
   unlock: dynamic(() => import("./UnlockWorkflow"), { ssr: false }),
   redact: dynamic(() => import("./RedactWorkflow"), { ssr: false }),
   sanitize: dynamic(() => import("./SanitizeWorkflow"), { ssr: false }),
+  duplicate: dynamic(() => import("./DuplicateWorkflow"), { ssr: false }),
+  compress: dynamic(() => import("./CompressWorkflow"), { ssr: false }),
+  "pdf-info": dynamic(() => import("./InfoWorkflow"), { ssr: false }),
+  "extract-text": dynamic(() => import("./ExtractTextWorkflow"), { ssr: false }),
 };

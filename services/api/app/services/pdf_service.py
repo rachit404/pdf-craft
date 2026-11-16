@@ -23,13 +23,13 @@ def extract_document_text(file_path: Path) -> dict:
     return extract_pdf_text(file_path)
 
 
-def compress_document(file_path: Path) -> dict:
+def compress_document(file_path: Path, level: str = "lossless") -> dict:
     output = _output_path()
     try:
         return {
             "message": "PDF compression completed successfully.",
             "original_filename": file_path.name,
-            **compress_pdf(file_path, output),
+            **compress_pdf(file_path, output, level),
         }
     except Exception:
         output.unlink(missing_ok=True)

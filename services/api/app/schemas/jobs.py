@@ -36,3 +36,5 @@ class PDFJobResponse(BaseModel):
     error_message: str | None
     created_at: datetime
     completed_at: datetime | None
+    # None once the output file has been deleted.
+    output_size_bytes: int | None = None

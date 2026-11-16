@@ -1,6 +1,6 @@
 # PROJECT_STATE — verified 2026-11-16 (updated after Part 1 implementation)
 
-> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **138 backend tests pass** (Part 3), lint clean, build OK.
+> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **155 backend tests pass** (Part 4), lint clean, build OK.
 
 ## Git
 - Local branches: `claude-takeover` (current), `main`. Both + `origin/main` + `origin/claude-takeover` = `5397490` (`feat(web): add watermark and page numbering workflows`).
@@ -32,7 +32,7 @@ Empty placeholder dirs at repo root: `.dist/ data/ docs/ infrastructure/ package
 ## Backend API map (verified in routers)
 Storage model: client uploads → server returns stored filename (uuid-based) → operations reference that filename → result is written to `outputs/` → download via `GET /outputs/{name}` (allowed: pdf, zip, docx, xlsx, pptx).
 - `GET /health`, `GET /health/database`
-- `/jobs` POST/GET list/GET `{public_id}`/DELETE — SQLite job records (**not used by operations yet**)
+- `/jobs` GET list (adds `output_size_bytes`, null when the file is gone) · DELETE `{public_id}` (also deletes the output file) · `GET /jobs/retention` · `DELETE /jobs` (purge ALL stored files + history). Rows are written automatically for every successful response containing `output_filename` (routers use `route_class=RecordedRoute`); `operation` = last URL segment (e.g. `rotate`, `to-docx`, `compress`).
 - `POST /uploads` (multipart `file`, PDF only, 25 MB, content-type + `%PDF-` check) · `POST /uploads/image` (png/jpg, 10 MB)
 - `GET /uploads/{f}/info` · `GET /uploads/{f}/text` · `POST /uploads/{f}/compress`
 - `POST /operations/merge` {filenames}
@@ -43,7 +43,7 @@ Storage model: client uploads → server returns stored filename (uuid-based) �
 - Schemas are authoritative: **always re-read `schemas/*.py` + the router before wiring a workflow** (rule B in RULES.md).
 
 ## Frontend status
-Implemented workflows (24, Parts 1–3): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF + (Part 3) Protect, Unlock, Redact, Sanitize.
+Implemented workflows (28, Parts 1–4): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF + (Part 3) Protect, Unlock, Redact, Sanitize + (Part 4) Duplicate, Compress, PDF details, PDF to text, plus the Recent files view (`components/dashboard/HistoryView.tsx`, opened from the sidebar).
 Placeholders (still "coming soon"): none. All 24 tool cards have workflows.
 No tool entry / workflow at all (backend exists): duplicate-pages, compress, inspect/metadata, text extraction.
 
@@ -58,8 +58,8 @@ No tool entry / workflow at all (backend exists): duplicate-pages, compress, ins
 
 ## Known issues / risks (prioritized)
 1. 15 tools are marked `available: true` but open a placeholder → misleading until Parts 1–3 land.
-2. SQLite job infra exists but operations don't record jobs; no history UI.
-3. No retention/cleanup of `uploads/` and `outputs/` (files accumulate forever) — privacy + disk problem for self-hosting.
+2. (Done in Part 4) History recorded + Recent files UI.
+3. (Done in Part 4) Retention sweep every 15 min, default 24 h (`PDF_CRAFT_RETENTION_HOURS`), plus manual delete-all. NOTE: it deletes anything older than the period in the storage dir, including old dev files.
 4. No authentication/authorization — must be added before exposing on a LAN/Internet (Part 5).
 5. DOCX/PPTX→PDF: uses LibreOffice if found (PDF_CRAFT_SOFFICE / PATH / default Windows dirs), else a text-only reportlab fallback (UI shows a warning). Uploads are now validated as real OOXML zips (+ unpacked-size cap). LibreOffice is not installed on the dev PC → real-LO output unverified; Docker image must include it (Part 5).
 6. `services/api/req.txt` is a stale UTF-16 `pip freeze` (junk); `requirements.txt` is unpinned ranges and lacks trailing newline. Need one clean, pinned lock for deployment.
@@ -71,4 +71,6 @@ No tool entry / workflow at all (backend exists): duplicate-pages, compress, ins
 12. Conversion endpoints for Office files run in a threadpool (LibreOffice can take minutes); concurrency capped by PDF_CRAFT_OFFICE_WORKERS (2), timeout PDF_CRAFT_OFFICE_TIMEOUT (120 s).
 13. Dev note: user's own `uvicorn --reload` on :8000 and `next dev` on :3000 may be running — test on other ports (8010/3010) and never kill them.
 14. Test hygiene: stale uvicorn processes survive on Windows and can serve OLD code on the same port — kill by listening PID (`netstat -ano`) and verify with /openapi.json before trusting browser tests. Avoid apostrophes/backticks inside bash heredocs (tool parser breaks); use Write/Edit tools for files.
-15. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.
+15. Tests use their own temp SQLite DB and retention 0 (set in `tests/conftest.py` before the app import). When browser-testing destructive features (delete-all), start the test backend with `PDF_CRAFT_STORAGE_DIR` and `PDF_CRAFT_DATABASE_URL` pointing at a scratch folder. Kill test servers by command line (PowerShell `Get-CimInstance Win32_Process | Where CommandLine -match "--port 8010"`), because two uvicorn processes can share a port on Windows and netstat misses them.
+16. Compress: `POST /uploads/{f}/compress` body `{level: lossless|balanced|strong}` (optional); result adds `level`, `output_size_bytes`; output is never larger than the input. `/uploads/{f}/info` adds `pdf_version`, `page_size`, `mixed_page_sizes`, `metadata.keywords/created/modified` and now reads with strict=False.
+17. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.

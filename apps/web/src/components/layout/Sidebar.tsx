@@ -14,6 +14,7 @@ import { categories, type ToolCategory } from "@/lib/tools";
 interface SidebarProps {
   activeCategory: ToolCategory;
   onCategoryChange: (category: ToolCategory) => void;
+  onOpenHistory: () => void;
   open: boolean;
   onClose: () => void;
 }
@@ -21,6 +22,7 @@ interface SidebarProps {
 export default function Sidebar({
   activeCategory,
   onCategoryChange,
+  onOpenHistory,
   open,
   onClose,
 }: SidebarProps) {
@@ -106,11 +108,14 @@ export default function Sidebar({
 
         <div className="mt-auto space-y-1 border-t border-gray-100 p-4">
           <button
-            onClick={() => onCategoryChange("All tools")}
+            onClick={() => {
+              onOpenHistory();
+              onClose();
+            }}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-gray-600 hover:bg-gray-50"
           >
             <Clock3 size={18} />
-            Recent activity
+            Recent files
           </button>
 
           <button

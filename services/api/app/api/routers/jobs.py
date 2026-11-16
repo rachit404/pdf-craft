@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.routers import outputs
 from app.db.dependencies import get_db
 from app.db.models import PDFJob
 from app.db.repositories.jobs import (
@@ -14,6 +15,7 @@ from app.db.repositories.jobs import (
     list_jobs,
 )
 from app.schemas.jobs import PDFJobCreate, PDFJobResponse
+from app.services import retention
 
 
 router = APIRouter(
@@ -45,14 +47,41 @@ def create_pdf_job(
         ) from exc
 
 
+def _with_output_size(job: PDFJob) -> PDFJobResponse:
+    response = PDFJobResponse.model_validate(job)
+
+    if job.output_filename:
+        path = outputs.OUTPUT_DIR / job.output_filename
+
+        if path.is_file():
+            response.output_size_bytes = path.stat().st_size
+
+    return response
+
+
+@router.get("/retention")
+def get_retention() -> dict[str, float]:
+    """Hours stored files are kept before automatic deletion (0 = forever)."""
+    return {"retention_hours": retention.RETENTION_HOURS}
+
+
+@router.delete("")
+def delete_all_files() -> dict[str, int]:
+    """Delete every stored upload and output, and clear the history."""
+    return {"files_deleted": retention.purge_all()}
+
+
 @router.get("", response_model=list[PDFJobResponse])
 def get_pdf_jobs(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-) -> list[PDFJob]:
+) -> list[PDFJobResponse]:
     try:
-        return list_jobs(db=db, limit=limit, offset=offset)
+        return [
+            _with_output_size(job)
+            for job in list_jobs(db=db, limit=limit, offset=offset)
+        ]
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -95,6 +124,9 @@ def delete_pdf_job(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="PDF job was not found.",
             )
+
+        if job.output_filename:
+            (outputs.OUTPUT_DIR / job.output_filename).unlink(missing_ok=True)
 
         delete_job(db=db, job=job)
 

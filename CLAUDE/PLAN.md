@@ -21,7 +21,7 @@ Backend already exists for all of these; mostly frontend.
 - Multi-file/zip results: download card handles `.zip`, `.docx`, `.xlsx`, `.pptx`.
 - Done when: outputs open correctly (DOCX/XLSX/PPTX loaded via python-docx/openpyxl/python-pptx in verification script; images zip has N pages).
 
-## Part 3 — Protect workflows  [~] implemented, awaiting user verification (not committed)
+## Part 3 — Protect workflows  [x] committed c047efa, pushed
 - Delivered: Protect, Unlock, Redact (drag areas + search terms), Sanitize (per-option toggles). Fixed: unlock/redact endpoints were dead (positional-arg bug), protect permissions were ineffective without an owner password (now random owner pw), protect/unlock dropped metadata, sanitize left OpenAction/page/link/Names JavaScript in place, `cryptography` missing from requirements.
 - Workflows: **Protect (passwords + permissions), Unlock, Redact, Sanitize**.
 - Page preview endpoint already exists (added in Part 1: `GET /uploads/{f}/pages/{n}/preview`, JPEG + X-Page-Width/Height) and `shared/PagePreview.tsx`. Redact UI: draw/enter regions on page preview, coordinates mapped to PDF points.
@@ -29,7 +29,9 @@ Backend already exists for all of these; mostly frontend.
 - Encrypted-PDF UX: any workflow hitting an encrypted file points the user to Unlock.
 - Never log or persist passwords.
 
-## Part 4 — Utilities, jobs & V1 completeness  [ ]
+## Part 4 — Utilities, jobs & V1 completeness  [~] implemented, awaiting user verification (not committed)
+- Delivered: Duplicate pages, Compress (lossless + balanced/strong image levels via PyMuPDF, no new dependency), PDF details, PDF to text; history (every output recorded by `api/recording.py::RecordedRoute`, original names kept in `stored_uploads`), Recent files view with re-download/delete/delete-all; retention sweep (PDF_CRAFT_RETENTION_HOURS, default 24, 0 = keep) started from the app lifespan, which now also creates the DB schema on startup.
+- Deferred to backlog (not done): thumbnails in the 8 legacy workflows, upload progress, mobile pass, dead Settings button in the sidebar.
 - Workflows/tools: **Duplicate pages, Compress, PDF info/metadata, Text extraction**; mark nothing `available` unless it has a workflow.
 - Wire SQLite jobs: operations record job + output; "Recent files / history" view with re-download and delete.
 - Retention/cleanup: configurable auto-delete of uploads/outputs (default e.g. 24 h) via background task + manual "delete my files" button.

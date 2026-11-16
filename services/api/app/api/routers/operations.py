@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, HTTPException
 
+from app.api.recording import RecordedRoute
 from app.api.routers.uploads import resolve_stored_file, resolve_stored_image
 from app.schemas.operations import (
     AddImageRequest,
@@ -19,7 +20,7 @@ from app.schemas.operations import (
 from app.services import pdf_service
 
 
-router = APIRouter(prefix="/operations", tags=["PDF Operations"])
+router = APIRouter(prefix="/operations", tags=["PDF Operations"], route_class=RecordedRoute)
 
 
 def _execute(function, *args, **kwargs):

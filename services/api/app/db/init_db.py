@@ -3,7 +3,7 @@ from uuid import uuid4
 from sqlalchemy import inspect, text
 
 from app.db.base import Base
-from app.db.models import PDFJob  # noqa: F401
+from app.db import models  # noqa: F401  (registers the tables)
 from app.db.session import engine
 
 
@@ -53,10 +53,15 @@ def migrate_pdf_jobs() -> None:
         )
 
 
-def init_db() -> None:
-    """Create database tables and apply required migrations."""
+def create_schema() -> None:
+    """Create missing tables and apply required migrations."""
     Base.metadata.create_all(bind=engine)
     migrate_pdf_jobs()
+
+
+def init_db() -> None:
+    """Command-line entry point: create the schema and list its tables."""
+    create_schema()
 
     print("Database initialization completed successfully.")
 

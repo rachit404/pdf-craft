@@ -13,7 +13,7 @@ def extract_pdf_text(file_path: Path) -> dict[str, Any]:
         raise FileNotFoundError("PDF file was not found.")
 
     try:
-        reader = PdfReader(str(file_path), strict=True)
+        reader = PdfReader(str(file_path), strict=False)
 
         if reader.is_encrypted:
             raise ValueError(ENCRYPTED_PDF_MESSAGE)

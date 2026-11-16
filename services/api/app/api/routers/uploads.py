@@ -1,11 +1,14 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Body, File, HTTPException, Query, Response, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from PIL import Image, UnidentifiedImageError
 from pypdf.errors import PdfReadError
 
-from app.schemas.uploads import PDFUploadResponse
+from app.api.recording import RecordedRoute
+from app.schemas.uploads import CompressRequest, PDFUploadResponse
+from app.services import history
 from app.services.pdf_service import (
     compress_document,
     extract_document_text,
@@ -24,7 +27,7 @@ IMAGE_FORMATS = {
     "JPEG": (".jpg", "image/jpeg"),
 }
 
-router = APIRouter(prefix="/uploads", tags=["Uploads"])
+router = APIRouter(prefix="/uploads", tags=["Uploads"], route_class=RecordedRoute)
 
 
 def resolve_stored_file(filename: str) -> Path:
@@ -115,6 +118,10 @@ async def upload_pdf(file: UploadFile = File(...)) -> PDFUploadResponse:
         except Exception:
             destination.unlink(missing_ok=True)
             raise
+
+        await run_in_threadpool(
+            history.remember_upload, stored_filename, original_filename
+        )
 
         return PDFUploadResponse(
             message="PDF uploaded successfully.",
@@ -225,18 +232,23 @@ def get_uploaded_pdf_text(stored_filename: str) -> dict:
 
     try:
         return extract_document_text(file_path)
-    except (ValueError, PdfReadError) as exc:
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except PdfReadError as exc:
         raise HTTPException(422, "Could not extract PDF text.") from exc
     except OSError as exc:
         raise HTTPException(500, "Could not extract PDF text.") from exc
 
 
 @router.post("/{stored_filename}/compress")
-def compress_uploaded_pdf(stored_filename: str) -> dict:
+def compress_uploaded_pdf(
+    stored_filename: str,
+    request: CompressRequest = Body(default_factory=CompressRequest),
+) -> dict:
     file_path = resolve_stored_file(stored_filename)
 
     try:
-        return compress_document(file_path)
+        return compress_document(file_path, request.level)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except OSError as exc:

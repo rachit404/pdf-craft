@@ -69,3 +69,17 @@ class PDFJob(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class StoredUpload(Base):
+    """Remember the name the user gave an uploaded file (for history labels)."""
+
+    __tablename__ = "stored_uploads"
+
+    stored_filename: Mapped[str] = mapped_column(String(64), primary_key=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )

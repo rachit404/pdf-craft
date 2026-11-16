@@ -3,9 +3,10 @@ import zipfile
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 
+from app.api.recording import RecordedRoute
 from app.api.routers.uploads import resolve_stored_file, resolve_stored_image
 from app.schemas.conversions import (
     ImagesToPDFRequest,
@@ -17,7 +18,7 @@ from app.services import conversion_service
 from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 
 
-router = APIRouter(prefix="/conversions", tags=["PDF Conversions"])
+router = APIRouter(prefix="/conversions", tags=["PDF Conversions"], route_class=RecordedRoute)
 
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 MAX_UNPACKED_BYTES = 250 * 1024 * 1024
@@ -154,7 +155,8 @@ def convert_pdf_to_pptx(
 
 
 @router.post("/docx-to-pdf", status_code=status.HTTP_200_OK)
-async def convert_docx_to_pdf(file: UploadFile = File(...)):
+async def convert_docx_to_pdf(request: Request, file: UploadFile = File(...)):
+    request.state.source_name = sanitize_filename(file.filename or "document.docx")
     path = await _save_document_upload(file, ".docx")
 
     try:
@@ -164,7 +166,8 @@ async def convert_docx_to_pdf(file: UploadFile = File(...)):
 
 
 @router.post("/pptx-to-pdf", status_code=status.HTTP_200_OK)
-async def convert_pptx_to_pdf(file: UploadFile = File(...)):
+async def convert_pptx_to_pdf(request: Request, file: UploadFile = File(...)):
+    request.state.source_name = sanitize_filename(file.filename or "slides.pptx")
     path = await _save_document_upload(file, ".pptx")
 
     try:

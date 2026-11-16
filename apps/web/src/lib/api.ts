@@ -10,12 +10,20 @@ export interface PDFInfo {
   filename: string;
   size_bytes: number;
   page_count: number;
+  pdf_version: string;
+  /** First page, in points. */
+  page_size: { width: number; height: number } | null;
+  mixed_page_sizes: boolean;
   metadata: {
     title: string | null;
     author: string | null;
     subject: string | null;
+    keywords: string | null;
     creator: string | null;
     producer: string | null;
+    /** ISO date strings. */
+    created: string | null;
+    modified: string | null;
   };
 }
 
@@ -290,6 +298,89 @@ export async function fetchPagePreview(
     width: Number(response.headers.get("X-Page-Width")),
     height: Number(response.headers.get("X-Page-Height")),
   };
+}
+
+export const duplicatePages = (filename: string, pages: number[]) =>
+  postOperation(filename, "duplicate-pages", { pages });
+
+export type CompressionLevel = "lossless" | "balanced" | "strong";
+
+export interface CompressResponse {
+  output_filename: string;
+  output_size_bytes: number;
+  level: CompressionLevel;
+  original_size_bytes: number;
+  saved_bytes: number;
+  reduction_percent: number;
+}
+
+export async function compressPDF(
+  filename: string,
+  level: CompressionLevel,
+): Promise<CompressResponse> {
+  const response = await fetch(
+    `${API_BASE}/uploads/${encodeURIComponent(filename)}/compress`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ level }),
+    },
+  );
+
+  return handleResponse<CompressResponse>(response);
+}
+
+export interface ExtractedText {
+  page_count: number;
+  total_characters: number;
+  pages: { page_number: number; text: string }[];
+}
+
+export async function extractText(filename: string): Promise<ExtractedText> {
+  const response = await fetch(
+    `${API_BASE}/uploads/${encodeURIComponent(filename)}/text`,
+  );
+
+  return handleResponse<ExtractedText>(response);
+}
+
+/** One produced file in the history. */
+export interface HistoryEntry {
+  public_id: string;
+  /** Last segment of the API route, e.g. "rotate" or "to-docx". */
+  operation: string;
+  status: string;
+  original_filename: string | null;
+  output_filename: string | null;
+  created_at: string;
+  /** null once the file has been deleted. */
+  output_size_bytes: number | null;
+}
+
+export async function listHistory(): Promise<HistoryEntry[]> {
+  return handleResponse<HistoryEntry[]>(await fetch(`${API_BASE}/jobs?limit=100`));
+}
+
+export async function deleteHistoryEntry(publicId: string): Promise<void> {
+  await handleResponse(
+    await fetch(`${API_BASE}/jobs/${encodeURIComponent(publicId)}`, {
+      method: "DELETE",
+    }),
+  );
+}
+
+/** Deletes every stored upload and output on the server. */
+export async function deleteAllFiles(): Promise<number> {
+  const response = await fetch(`${API_BASE}/jobs`, { method: "DELETE" });
+
+  return (await handleResponse<{ files_deleted: number }>(response)).files_deleted;
+}
+
+/** Hours files are kept before automatic deletion; 0 means forever. */
+export async function getRetentionHours(): Promise<number> {
+  const response = await fetch(`${API_BASE}/jobs/retention`);
+
+  return (await handleResponse<{ retention_hours: number }>(response)).retention_hours;
 }
 
 async function postSecurity<T>(

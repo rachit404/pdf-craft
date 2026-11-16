@@ -8,6 +8,9 @@
 - Better mobile layout (Part 4)
 - Dark theme option (current UI is light; user brief mentioned dark) — ask user before doing
 
+- Sidebar "Settings" button does nothing (pre-existing): remove it or build a settings view (retention, limits) in Part 5
+- Edit PDF metadata (title/author) from the PDF details tool
+
 ## Technical debt
 - Hero section / `page.tsx` if-else chain → registry map of `id → component` once all workflows exist (Part 4 cleanup, low risk)
 - Existing 8 workflows duplicate upload/result UI → migrate to shared components only if user asks

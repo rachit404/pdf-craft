@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, Body, HTTPException
 
+from app.api.recording import RecordedRoute
 from app.api.routers.uploads import resolve_stored_file
 from app.schemas.security import (
     ProtectPDFRequest,
@@ -11,7 +12,7 @@ from app.schemas.security import (
 from app.services import security_service
 
 
-router = APIRouter(prefix="/security", tags=["PDF Security"])
+router = APIRouter(prefix="/security", tags=["PDF Security"], route_class=RecordedRoute)
 
 
 def _execute(function, *args, **kwargs):
