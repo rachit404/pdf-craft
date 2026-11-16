@@ -2,7 +2,6 @@
 
 import {
   FolderOpen,
-  LogOut,
   Menu,
   Moon,
   Search,
@@ -15,10 +14,10 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-import { useAuth } from "@/components/auth/AuthGate";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import Button from "@/components/ui/Button";
 import { Kbd } from "@/components/ui/controls";
+import Logo from "@/components/ui/Logo";
 import type { Route } from "@/lib/route";
 import { tools } from "@/lib/tools";
 import { cn } from "@/lib/utils";
@@ -45,7 +44,6 @@ function section(route: Route): string {
 
 /** The top bar on every page, and the frame around the page. */
 export default function AppShell({ route, navigate, onOpenTool, children }: AppShellProps) {
-  const { authRequired, signOut } = useAuth();
   const { theme, select } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -64,10 +62,10 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
         Skip to the page
       </a>
 
-      <header className="relative z-30 shrink-0 border-b border-line bg-panel/90 backdrop-blur">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-line bg-panel/95 backdrop-blur">
         <div className="flex h-14 items-center gap-2 px-3 sm:px-5">
           <button type="button" onClick={() => go({ name: "tools", category: "All tools" })} className="mr-1 flex items-center gap-2.5 rounded-ctl py-1 pr-2 hover:opacity-90" aria-label="PDF Craft home">
-            <span className="h-6 w-[1.15rem] rounded-[3px_8px_3px_3px] bg-gradient-to-br from-accent to-accent-hover shadow-sm" aria-hidden />
+            <Logo className="size-8" />
             <span className="text-[1rem] font-semibold tracking-tight">PDF Craft</span>
           </button>
 
@@ -130,11 +128,6 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
           >
             <Settings className="size-4" strokeWidth={1.75} />
           </Button>
-          {authRequired && (
-            <Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={() => void signOut()}>
-              <LogOut className="size-4" strokeWidth={1.75} />
-            </Button>
-          )}
           <Button variant="ghost" size="icon" className="md:hidden" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
             {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
           </Button>

@@ -1,10 +1,12 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Input, Kbd, Segmented } from "@/components/ui/controls";
+import { usePersistedFlag } from "@/lib/usePersistedFlag";
 import { categories, tools, type ToolCategory } from "@/lib/tools";
+import { cn } from "@/lib/utils";
 
 interface ToolsPageProps {
   category: ToolCategory;
@@ -16,6 +18,7 @@ interface ToolsPageProps {
 export default function ToolsPage({ category, onCategoryChange, onOpenTool }: ToolsPageProps) {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const [sidebarOpen, setSidebarOpen] = usePersistedFlag("pdfcraft.sidebar.tools");
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -49,9 +52,45 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
     .map((item) => ({ name: item, items: visible.filter((tool) => tool.category === item) }))
     .filter((group) => group.items.length > 0);
 
+  const counts = new Map<string, number>(categories.map((item) => [item, item === "All tools" ? tools.length : tools.filter((tool) => tool.category === item).length]));
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8">
+    <div className="flex min-h-full">
+      {sidebarOpen && (
+        <aside aria-label="Browse tools" className="pc-fade sticky top-0 hidden h-[calc(100vh-3.5rem)] w-56 shrink-0 flex-col border-r border-line bg-panel lg:flex">
+          <div className="flex items-center justify-between px-4 pb-2 pt-4">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-fg-subtle">Browse</p>
+            <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Hide the sidebar" title="Hide the sidebar" className="rounded-ctl p-1 text-fg-muted hover:bg-hover hover:text-fg">
+              <PanelLeftClose className="size-4" strokeWidth={1.75} />
+            </button>
+          </div>
+          <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4" aria-label="Tool categories">
+            {categories.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onCategoryChange(item)}
+                aria-current={category === item ? "page" : undefined}
+                className={cn(
+                  "flex h-9 w-full items-center gap-2 rounded-ctl px-2.5 text-left text-[0.86rem] font-medium transition-colors",
+                  category === item ? "bg-accent-soft font-semibold text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
+                )}
+              >
+                <span className="flex-1 truncate">{item}</span>
+                <span className="font-mono text-[0.72rem] text-fg-subtle">{counts.get(item)}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+      )}
+
+      <div className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-5 py-6 sm:px-8">
       <div className="mb-5 flex flex-wrap items-center gap-3">
+        {!sidebarOpen && (
+          <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Show the sidebar" title="Show the sidebar" className="hidden rounded-ctl border border-line-strong bg-surface p-1.5 text-fg-muted hover:bg-hover hover:text-fg lg:inline-flex">
+            <PanelLeftOpen className="size-4" strokeWidth={1.75} />
+          </button>
+        )}
         <h1 className="mr-auto text-lg font-semibold tracking-tight">
           Tools <span className="ml-1 font-mono text-[0.8rem] font-normal text-fg-subtle">{visible.length}</span>
         </h1>
@@ -69,7 +108,7 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
           <Kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</Kbd>
         </div>
 
-        <div className="w-full sm:w-auto">
+        <div className={cn("w-full sm:w-auto", sidebarOpen && "lg:hidden")}>
           <Segmented
             label="Category"
             value={category}
@@ -116,6 +155,7 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

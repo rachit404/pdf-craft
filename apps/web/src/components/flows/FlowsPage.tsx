@@ -12,7 +12,7 @@ import {
   type Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Download, Eye, FolderOpen, LayoutTemplate, Loader2, Play, Save, Search, Square, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FolderOpen, LayoutTemplate, Loader2, PanelLeftClose, PanelLeftOpen, Play, Save, Search, Square, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -53,6 +53,7 @@ import {
 } from "@/lib/flows";
 import { timeAgo } from "@/lib/format";
 import type { Route } from "@/lib/route";
+import { usePersistedFlag } from "@/lib/usePersistedFlag";
 import NodeModal from "./NodeModal";
 import StepNodeView, { NodeActionsContext, SpecsContext } from "./StepNodeView";
 
@@ -95,6 +96,7 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
   const [modalId, setModalId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<StoredFileInfo | null>(null);
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [paletteOpen, setPaletteOpen] = usePersistedFlag("pdfcraft.sidebar.flows");
   const importRef = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
 
@@ -369,6 +371,9 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
       <div className="flex h-full min-h-0 flex-col">
         {/* Toolbar */}
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-2">
+          <Button size="icon" variant="ghost" aria-label={paletteOpen ? "Hide the steps sidebar" : "Show the steps sidebar"} title={paletteOpen ? "Hide the steps sidebar" : "Show the steps sidebar"} aria-expanded={paletteOpen} onClick={() => setPaletteOpen(!paletteOpen)}>
+            {paletteOpen ? <PanelLeftClose className="size-4" strokeWidth={1.75} /> : <PanelLeftOpen className="size-4" strokeWidth={1.75} />}
+          </Button>
           <Input value={name} onChange={(event) => setName(event.target.value)} aria-label="Flow name" maxLength={80} className="w-44 font-medium" />
           <Menu label="Open" icon={<FolderOpen className="size-4" strokeWidth={1.75} />}>
             {(close) =>
@@ -453,7 +458,7 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
 
         <div className="flex min-h-0 flex-1">
           {/* Palette */}
-          <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-panel" aria-label="Steps">
+          <aside className={paletteOpen ? "pc-fade flex w-52 shrink-0 flex-col border-r border-line bg-panel" : "hidden"} aria-label="Steps">
             <div className="relative p-2">
               <Search className="pointer-events-none absolute left-4 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" strokeWidth={1.75} />
               <input

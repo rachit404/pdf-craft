@@ -18,6 +18,7 @@ import {
 } from "@/lib/api";
 
 import Button from "@/components/ui/Button";
+import Logo from "@/components/ui/Logo";
 import { ErrorBanner, inputClass } from "@/components/ui/blocks";
 
 interface AuthContextValue {
@@ -105,7 +106,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           className="w-full max-w-sm rounded-box border border-line bg-surface p-6"
         >
           <div className="mb-5 flex items-center gap-2.5">
-            <div className="h-6 w-[1.15rem] rounded-[2px_7px_2px_2px] bg-accent" aria-hidden />
+            <Logo className="size-8" />
             <span className="text-lg font-semibold tracking-tight">PDF Craft</span>
           </div>
 

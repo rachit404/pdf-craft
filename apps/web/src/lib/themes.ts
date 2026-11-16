@@ -5,6 +5,7 @@
  */
 
 import { contrast, mix, readableOn } from "./color";
+import { setTabIcon } from "./logo";
 
 export type ThemeMode = "light" | "dark";
 
@@ -310,6 +311,7 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
   root.dataset.theme = theme.id;
   root.dataset.mode = theme.mode;
   root.style.colorScheme = theme.mode;
+  setTabIcon(theme.vars.accent);
 }
 
 /**
