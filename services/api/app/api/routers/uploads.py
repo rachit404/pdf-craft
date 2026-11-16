@@ -7,6 +7,7 @@ from PIL import Image, UnidentifiedImageError
 from pypdf.errors import PdfReadError
 
 from app.api.recording import RecordedRoute
+from app.config import MAX_IMAGE_BYTES, MAX_UPLOAD_BYTES
 from app.schemas.uploads import CompressRequest, PDFUploadResponse
 from app.services import history
 from app.services.pdf_service import (
@@ -18,8 +19,6 @@ from app.services.pdf_service import (
 from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 
 
-MAX_UPLOAD_BYTES = 25 * 1024 * 1024
-MAX_IMAGE_BYTES = 10 * 1024 * 1024
 PDF_SIGNATURE = b"%PDF-"
 
 IMAGE_FORMATS = {
@@ -103,7 +102,10 @@ async def upload_pdf(file: UploadFile = File(...)) -> PDFUploadResponse:
                     total_bytes += len(chunk)
 
                     if total_bytes > MAX_UPLOAD_BYTES:
-                        raise HTTPException(413, "PDF exceeds the 25 MB limit.")
+                        raise HTTPException(
+                            413,
+                            f"PDF exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
+                        )
 
                     if first_chunk:
                         first_chunk = False
@@ -160,7 +162,10 @@ async def upload_image(file: UploadFile = File(...)) -> dict:
                     total_bytes += len(chunk)
 
                     if total_bytes > MAX_IMAGE_BYTES:
-                        raise HTTPException(413, "Image exceeds the 10 MB limit.")
+                        raise HTTPException(
+                            413,
+                            f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
+                        )
 
                     output.write(chunk)
 

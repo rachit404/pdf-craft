@@ -46,7 +46,14 @@ export interface SplitResponse {
   parts: number;
 }
 
+/** Fired when the server says the session ended; the app shows the sign-in page. */
+export const UNAUTHORIZED_EVENT = "pdfcraft:unauthorized";
+
 async function readError(response: Response): Promise<Error> {
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
+
   let message = `Request failed (${response.status})`;
 
   try {
@@ -254,6 +261,27 @@ export async function numberPDFPages(
   );
 
   return handleResponse<PDFOperationResponse>(response);
+}
+
+export async function getAuthStatus(): Promise<{
+  auth_required: boolean;
+  authenticated: boolean;
+}> {
+  return handleResponse(await fetch(`${API_BASE}/auth/status`));
+}
+
+export async function signIn(password: string): Promise<void> {
+  await handleResponse(
+    await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    }),
+  );
+}
+
+export async function signOut(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, { method: "POST" });
 }
 
 export interface UploadedImage {

@@ -8,7 +8,7 @@
 - Better mobile layout (Part 4)
 - Dark theme option (current UI is light; user brief mentioned dark) — ask user before doing
 
-- Sidebar "Settings" button does nothing (pre-existing): remove it or build a settings view (retention, limits) in Part 5
+- (Done) the dead Settings button was replaced by Sign out (shown only when sign-in is on)
 - Edit PDF metadata (title/author) from the PDF details tool
 
 ## Technical debt

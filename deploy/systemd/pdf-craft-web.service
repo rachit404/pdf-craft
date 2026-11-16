@@ -1,0 +1,46 @@
+[Unit]
+Description=PDF Craft web interface
+After=network.target pdf-craft-api.service
+Wants=pdf-craft-api.service
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_USER@
+WorkingDirectory=@APP_DIR@/web
+# HOSTNAME and PORT in this file tell the server where to listen.
+EnvironmentFile=@ENV_FILE@
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=HOME=@STATE_DIR@/home
+ExecStart=@NODE@ server.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+
+# Behind the proxy this service only needs the local machine (rules inserted
+# by the installer; empty when the web app is exposed directly).
+@WEB_NET_RULES@
+
+# Containment
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@STATE_DIR@ @APP_DIR@/web/.next/cache
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

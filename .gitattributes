@@ -1,0 +1,6 @@
+# Scripts and service files run on Linux, so they must keep Unix line endings
+# even when the repository is checked out on Windows.
+*.sh text eol=lf
+*.service text eol=lf
+Caddyfile* text eol=lf
+*.env.example text eol=lf

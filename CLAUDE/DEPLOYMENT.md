@@ -1,3 +1,5 @@
+> **Status (Part 5): implemented without Docker. The user-facing guide is `docs/self-hosting.md`; scripts are in `deploy/`. This file keeps the original planning notes.**
+
 # DEPLOYMENT — self-hosting on a Linux machine (target for Part 5)
 
 Goal: fully local, private replacement for smallpdf / ilovepdf. Files never leave the machine; the app makes **zero** outbound requests.

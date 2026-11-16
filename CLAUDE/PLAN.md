@@ -29,7 +29,7 @@ Backend already exists for all of these; mostly frontend.
 - Encrypted-PDF UX: any workflow hitting an encrypted file points the user to Unlock.
 - Never log or persist passwords.
 
-## Part 4 — Utilities, jobs & V1 completeness  [~] implemented, awaiting user verification (not committed)
+## Part 4 — Utilities, jobs & V1 completeness  [x] committed 42315aa, pushed
 - Delivered: Duplicate pages, Compress (lossless + balanced/strong image levels via PyMuPDF, no new dependency), PDF details, PDF to text; history (every output recorded by `api/recording.py::RecordedRoute`, original names kept in `stored_uploads`), Recent files view with re-download/delete/delete-all; retention sweep (PDF_CRAFT_RETENTION_HOURS, default 24, 0 = keep) started from the app lifespan, which now also creates the DB schema on startup.
 - Deferred to backlog (not done): thumbnails in the 8 legacy workflows, upload progress, mobile pass, dead Settings button in the sidebar.
 - Workflows/tools: **Duplicate pages, Compress, PDF info/metadata, Text extraction**; mark nothing `available` unless it has a workflow.
@@ -38,7 +38,10 @@ Backend already exists for all of these; mostly frontend.
 - Backlog items worth doing here: thumbnails in Reorder/Delete/Extract, upload progress, better error states, mobile layout pass.
 - Done when: V1 feature list in the brief is fully reachable from the dashboard; backend suite green.
 
-## Part 5 — Self-host on Linux, privacy & release  [ ]
+## Part 5 — Self-host on Linux, privacy & release  [~] implemented, awaiting user verification (not committed)
+- NO DOCKER (user decision). Delivered: `deploy/` (install.sh, set-password.sh, uninstall.sh, systemd units, Caddyfile.template, env example, smoke_test.py), `docs/self-hosting.md` (install + manual-run commands), README, single-user sign-in (`app/auth.py`, `AuthGate.tsx`), env-configurable limits (`app/config.py`), `constraints.txt` + `requirements-dev.txt` (req.txt deleted), Next `output: standalone`, `API_INTERNAL_URL`, `proxyClientMaxBodySize`.
+- Verified here (Windows): 175 backend tests, lint, build, smoke test 30/30 against an auth-enabled backend directly AND through the standalone Next proxy, 19 MB upload via proxy, 413 over limit, login/logout in browser, `systemd-analyze verify` + `bash -n` in WSL Ubuntu 24.04.
+- NOT verified: a real `sudo install.sh` run, Caddy, LibreOffice, IPAddressDeny behaviour (no root in WSL). First real run is on the user's Linux box: expect small fixes.
 Details in `DEPLOYMENT.md`.
 - Config via env (no build-time baked URLs); `.env.example`; pinned `requirements.lock`; remove stale `req.txt`.
 - Dockerfiles (api, web) + `docker-compose.yml` + reverse proxy (Caddy/nginx) with HTTPS, non-root containers, volumes for data, healthchecks. Also a no-Docker systemd option.

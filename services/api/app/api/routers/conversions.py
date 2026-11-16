@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 
 from app.api.recording import RecordedRoute
+from app.config import MAX_UPLOAD_BYTES
 from app.api.routers.uploads import resolve_stored_file, resolve_stored_image
 from app.schemas.conversions import (
     ImagesToPDFRequest,
@@ -20,7 +21,7 @@ from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 
 router = APIRouter(prefix="/conversions", tags=["PDF Conversions"], route_class=RecordedRoute)
 
-MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+MAX_DOCUMENT_BYTES = MAX_UPLOAD_BYTES
 MAX_UNPACKED_BYTES = 250 * 1024 * 1024
 
 # Every genuine Office Open XML file is a ZIP holding this main part.
@@ -81,7 +82,7 @@ async def _save_document_upload(file: UploadFile, extension: str) -> Path:
                 if total_bytes > MAX_DOCUMENT_BYTES:
                     raise HTTPException(
                         413,
-                        "Document exceeds the 25 MB upload limit.",
+                        f"Document exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB upload limit.",
                     )
 
                 output.write(chunk)

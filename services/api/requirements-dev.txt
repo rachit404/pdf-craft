@@ -1,0 +1,6 @@
+# Everything needed to run the test suite:
+#   pip install -r requirements-dev.txt -c constraints.txt
+
+-r requirements.txt
+pytest>=8.0
+httpx2  # used by the FastAPI test client

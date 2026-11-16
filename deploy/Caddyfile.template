@@ -1,0 +1,34 @@
+# Managed by PDF Craft (deploy/install.sh). Edit the template in the repository,
+# or this file if you know what you are doing; the installer overwrites it.
+
+@SITE@ {
+	@TLS@
+
+	encode zstd gzip
+
+	# A little above the largest upload the app accepts (25 MB by default).
+	# Raise it together with PDF_CRAFT_MAX_UPLOAD_MB.
+	request_body {
+		max_size 40MB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# The API goes straight to the backend (no extra hop through the web app).
+	handle /api/backend/* {
+		uri strip_prefix /api/backend
+		reverse_proxy 127.0.0.1:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

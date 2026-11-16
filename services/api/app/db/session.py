@@ -12,12 +12,15 @@ API_DIR = Path(__file__).resolve().parents[2]
 # Default local database:
 # services/api/data/pdf_craft.db
 DATA_DIR = API_DIR / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
 DEFAULT_DATABASE_PATH = DATA_DIR / "pdf_craft.db"
 
 # Optional database URL override.
 DATABASE_URL = os.getenv("PDF_CRAFT_DATABASE_URL")
+
+# Only create the default folder when it is used: a deployed copy of the
+# code may be read-only.
+if not DATABASE_URL:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 if DATABASE_URL:
     connect_args = (

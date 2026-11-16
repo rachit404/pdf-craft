@@ -9,6 +9,8 @@ import ToolCard from "@/components/dashboard/ToolCard";
 
 import dynamic from "next/dynamic";
 
+import AuthGate from "@/components/auth/AuthGate";
+
 import { workflows } from "@/components/workflows/registry";
 
 import { tools, type PDFTool, type ToolCategory } from "@/lib/tools";
@@ -19,6 +21,14 @@ const HistoryView = dynamic(
 );
 
 export default function Home() {
+  return (
+    <AuthGate>
+      <Dashboard />
+    </AuthGate>
+  );
+}
+
+function Dashboard() {
   const [activeCategory, setActiveCategory] =
     useState<ToolCategory>("All tools");
 

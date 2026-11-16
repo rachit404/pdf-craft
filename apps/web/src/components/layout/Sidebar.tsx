@@ -4,11 +4,12 @@ import {
   FileText,
   LayoutDashboard,
   Clock3,
-  Settings,
+  LogOut,
   ShieldCheck,
   X,
 } from "lucide-react";
 
+import { useAuth } from "@/components/auth/AuthGate";
 import { categories, type ToolCategory } from "@/lib/tools";
 
 interface SidebarProps {
@@ -26,6 +27,8 @@ export default function Sidebar({
   open,
   onClose,
 }: SidebarProps) {
+  const { authRequired, signOut } = useAuth();
+
   return (
     <>
       {open && (
@@ -118,13 +121,15 @@ export default function Sidebar({
             Recent files
           </button>
 
-          <button
-            onClick={() => onCategoryChange("All tools")}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            <Settings size={18} />
-            Settings
-          </button>
+          {authRequired && (
+            <button
+              onClick={() => void signOut()}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <LogOut size={18} />
+              Sign out
+            </button>
+          )}
 
           <div className="mt-4 rounded-xl bg-gray-50 p-4">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">

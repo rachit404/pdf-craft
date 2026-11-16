@@ -1,0 +1,45 @@
+[Unit]
+Description=PDF Craft API
+After=network.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_USER@
+WorkingDirectory=@APP_DIR@/api
+EnvironmentFile=@ENV_FILE@
+Environment=HOME=@STATE_DIR@/home
+# One worker on purpose: the clean-up timer and sign-in throttle live in memory.
+# Access logging is off so file names never reach the logs.
+ExecStart=@APP_DIR@/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+
+# Privacy: this service can only talk to the local machine. It cannot reach the
+# internet, so no document or metadata can leave it, even by mistake.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+# Containment
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@STATE_DIR@
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
