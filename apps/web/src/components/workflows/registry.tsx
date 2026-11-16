@@ -33,4 +33,8 @@ export const workflows: Record<string, ComponentType<WorkflowProps>> = {
   "pdf-to-pptx": dynamic(() => import("./PDFToPowerPointWorkflow"), { ssr: false }),
   "docx-to-pdf": dynamic(() => import("./WordToPDFWorkflow"), { ssr: false }),
   "pptx-to-pdf": dynamic(() => import("./PowerPointToPDFWorkflow"), { ssr: false }),
+  protect: dynamic(() => import("./ProtectWorkflow"), { ssr: false }),
+  unlock: dynamic(() => import("./UnlockWorkflow"), { ssr: false }),
+  redact: dynamic(() => import("./RedactWorkflow"), { ssr: false }),
+  sanitize: dynamic(() => import("./SanitizeWorkflow"), { ssr: false }),
 };

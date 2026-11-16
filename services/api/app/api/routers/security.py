@@ -1,10 +1,11 @@
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 
 from app.api.routers.uploads import resolve_stored_file
 from app.schemas.security import (
     ProtectPDFRequest,
     RedactPDFRequest,
+    SanitizePDFRequest,
     UnlockPDFRequest,
 )
 from app.services import security_service
@@ -58,12 +59,17 @@ def redact(filename: str, request: RedactPDFRequest):
         security_service.redact_document,
         resolve_stored_file(filename),
         regions,
+        request.terms,
     )
 
 
 @router.post("/{filename}/sanitize")
-def sanitize(filename: str):
+def sanitize(
+    filename: str,
+    request: SanitizePDFRequest = Body(default_factory=SanitizePDFRequest),
+):
     return _execute(
         security_service.sanitize_document,
         resolve_stored_file(filename),
+        **request.model_dump(),
     )

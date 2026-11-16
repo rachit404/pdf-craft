@@ -22,12 +22,12 @@ def protect_document(path: Path, **kwargs) -> dict:
 
 
 def unlock_document(path: Path, password: str) -> dict:
-    return _run(security.unlock_pdf, path, password)
+    return _run(security.unlock_pdf, path, password=password)
 
 
-def redact_document(path: Path, regions: list[dict]) -> dict:
-    return _run(security.redact_pdf, path, regions)
+def redact_document(path: Path, regions: list[dict], terms: list[str]) -> dict:
+    return _run(security.redact_pdf, path, regions=regions, terms=terms)
 
 
-def sanitize_document(path: Path) -> dict:
-    return _run(security.sanitize_pdf, path)
+def sanitize_document(path: Path, **options: bool) -> dict:
+    return _run(security.sanitize_pdf, path, **options)

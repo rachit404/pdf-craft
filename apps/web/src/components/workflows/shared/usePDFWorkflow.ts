@@ -20,7 +20,7 @@ interface OutputResult {
 /** Upload → configure → process → download state shared by single-PDF tools. */
 export function usePDFWorkflow<
   R extends OutputResult = PDFOperationResponse,
->() {
+>({ inspect = true }: { inspect?: boolean } = {}) {
   const [file, setFile] = useState<UploadedPDF | null>(null);
   const [info, setInfo] = useState<PDFInfo | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -46,7 +46,8 @@ export function usePDFWorkflow<
 
     try {
       const uploaded = await uploadPDF(selected);
-      setInfo(await inspectPDF(uploaded.stored_filename));
+      // Password-protected PDFs cannot be inspected, so Unlock skips this.
+      if (inspect) setInfo(await inspectPDF(uploaded.stored_filename));
       setFile(uploaded);
     } catch (err) {
       setError(

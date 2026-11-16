@@ -1,6 +1,6 @@
 # PROJECT_STATE — verified 2026-11-16 (updated after Part 1 implementation)
 
-> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **115 backend tests pass** (Part 2), lint clean, build OK.
+> Part 1 (Edit workflows) is implemented on `claude-takeover`, uncommitted until the user verifies. Baseline now: **138 backend tests pass** (Part 3), lint clean, build OK.
 
 ## Git
 - Local branches: `claude-takeover` (current), `main`. Both + `origin/main` + `origin/claude-takeover` = `5397490` (`feat(web): add watermark and page numbering workflows`).
@@ -38,13 +38,13 @@ Storage model: client uploads → server returns stored filename (uuid-based) �
 - `POST /operations/merge` {filenames}
 - `POST /operations/{f}/` `extract-pages`{pages} · `reorder-pages`{order} · `delete-pages`{pages} · `duplicate-pages`{pages} · `rotate`{pages,degrees} · `split`{ranges} · `watermark`{text,opacity,font_size} · `page-numbers`{position,font_size} · `header-footer`{header,footer} · `background`{red,green,blue} · `crop`{left,bottom,right,top} · `add-text`{text,x,y,font_size} · `add-image`{image_filename,x,y,width,height}
 - `POST /conversions/{f}/to-images` {image_format,dpi} (moved in Part 2) · `GET /conversions/capabilities` → {office_engine: libreoffice|basic} · `GET /outputs/{f}?name=` friendly download name · `POST /conversions/images-to-pdf` {filenames} · `POST /conversions/{f}/to-docx|to-xlsx` · `/{f}/to-pptx` {dpi} · `POST /conversions/docx-to-pdf|pptx-to-pdf` (multipart, 25 MB, extension-checked)
-- `POST /security/{f}/` `protect`{user_password,owner_password,allow_*} · `unlock`{password} · `redact`{regions} · `sanitize`
+- `POST /security/{f}/` `protect`{user_password,owner_password?,allow_*} (AES-256; random owner pw when none given so restrictions bind) · `unlock`{password="" ok} → {was_encrypted} · `redact`{regions[{page,x0,y0,x1,y1}] top-left pts on unrotated page, terms[]} → {areas_redacted,search_matches} · `sanitize`{metadata,javascript,attachments,annotations,links,hidden_text,form_data; body optional} → counts report
 - Part 1 additions: `GET /uploads/{f}/pages/{n}/preview?width=` → JPEG, headers `X-Page-Width/Height` (points, unrotated visible/crop box). `add-text` body now also takes `color` (#RRGGBB) and `pages` (optional list); `add-image` takes optional `pages`. Overlay coordinates: points, origin = bottom-left of the visible (crop) box, rotation ignored (preview is unrotated). Text is Latin-only (built-in Helvetica) → non-Latin rejected with 422. `crop` is relative to the current cropbox (accumulates). Image resolver shared: `uploads.resolve_stored_image`.
 - Schemas are authoritative: **always re-read `schemas/*.py` + the router before wiring a workflow** (rule B in RULES.md).
 
 ## Frontend status
-Implemented workflows (20, Parts 1–2): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF.
-Placeholders (still "coming soon"): protect, unlock, redact, sanitize.
+Implemented workflows (24, Parts 1–3): Merge, Split, Extract, Reorder, Rotate, Delete, Watermark, Page numbers + (Part 1) Add Text, Add Image, Header & Footer, Background, Crop + (Part 2) PDF→Images, Images→PDF, PDF→Word/Excel/PowerPoint, Word→PDF, PowerPoint→PDF + (Part 3) Protect, Unlock, Redact, Sanitize.
+Placeholders (still "coming soon"): none. All 24 tool cards have workflows.
 No tool entry / workflow at all (backend exists): duplicate-pages, compress, inspect/metadata, text extraction.
 
 ### Frontend conventions (copy these, don't re-read every workflow)
@@ -70,4 +70,5 @@ No tool entry / workflow at all (backend exists): duplicate-pages, compress, ins
 11. Overlay tools ignore pages with /Rotate ≠ 0 semantics (content drawn in unrotated frame, matches preview). Watermark and page-numbers still use the older mediabox-based overlay code path for page numbers (watermark uses the new box-aware path).
 12. Conversion endpoints for Office files run in a threadpool (LibreOffice can take minutes); concurrency capped by PDF_CRAFT_OFFICE_WORKERS (2), timeout PDF_CRAFT_OFFICE_TIMEOUT (120 s).
 13. Dev note: user's own `uvicorn --reload` on :8000 and `next dev` on :3000 may be running — test on other ports (8010/3010) and never kill them.
-14. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.
+14. Test hygiene: stale uvicorn processes survive on Windows and can serve OLD code on the same port — kill by listening PID (`netstat -ano`) and verify with /openapi.json before trusting browser tests. Avoid apostrophes/backticks inside bash heredocs (tool parser breaks); use Write/Edit tools for files.
+15. Privacy positives (verified): no external fonts, no CDN/URLs in frontend source, `layout.tsx` has no analytics.

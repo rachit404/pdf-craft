@@ -105,6 +105,43 @@ export function ErrorBanner({ message }: { message: string }) {
   );
 }
 
+interface ToggleRowProps {
+  label: string;
+  description?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+/** Labelled checkbox row for yes/no options. */
+export function ToggleRow({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: ToggleRowProps) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 transition hover:border-violet-200 has-[:checked]:border-violet-300 has-[:checked]:bg-violet-50/40">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 accent-violet-600"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-gray-900">{label}</span>
+        {description && (
+          <span className="mt-0.5 block text-xs leading-5 text-gray-500">
+            {description}
+          </span>
+        )}
+      </span>
+    </label>
+  );
+}
+
 /** Informational or cautionary note shown above an action. */
 export function Notice({
   tone = "info",

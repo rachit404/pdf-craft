@@ -20,6 +20,8 @@ interface PagePreviewProps {
   onLoad?: (size: PageSize) => void;
   /** Click position in PDF points from the page's bottom-left corner. */
   onPick?: (x: number, y: number) => void;
+  /** Rectangle dragged by the user, in points from the page top-left corner. */
+  onDrawRect?: (rect: { x0: number; y0: number; x1: number; y1: number }) => void;
   /** Colour multiplied over the page to approximate a background fill. */
   tint?: string;
   /**
@@ -29,6 +31,8 @@ interface PagePreviewProps {
   children?: (size: PageSize) => ReactNode;
 }
 
+type Point = { x: number; y: number };
+type Draft = { from: Point; to: Point };
 type Loaded = PageSize & { key: string; url: string };
 type Failed = { key: string; message: string };
 
@@ -40,12 +44,14 @@ export default function PagePreview({
   onPageChange,
   onLoad,
   onPick,
+  onDrawRect,
   tint,
   children,
 }: PagePreviewProps) {
   const key = `${filename}:${page}`;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState<Failed | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,17 +99,57 @@ export default function PagePreview({
     );
   }
 
+  /** Pointer position as a 0-1 fraction of the page, clamped to the page. */
+  function fraction(event: React.PointerEvent<HTMLDivElement>): Point {
+    const box = event.currentTarget.getBoundingClientRect();
+    const clamp = (value: number) => Math.min(Math.max(value, 0), 1);
+
+    return {
+      x: clamp((event.clientX - box.left) / box.width),
+      y: clamp((event.clientY - box.top) / box.height),
+    };
+  }
+
+  function finishDraw() {
+    if (!draft || !current || !onDrawRect) return;
+
+    const rect = {
+      x0: Math.min(draft.from.x, draft.to.x) * current.width,
+      y0: Math.min(draft.from.y, draft.to.y) * current.height,
+      x1: Math.max(draft.from.x, draft.to.x) * current.width,
+      y1: Math.max(draft.from.y, draft.to.y) * current.height,
+    };
+
+    setDraft(null);
+
+    // Ignore accidental clicks and tiny drags.
+    if (rect.x1 - rect.x0 >= 4 && rect.y1 - rect.y0 >= 4) onDrawRect(rect);
+  }
+
   return (
     <div className="mx-auto w-full max-w-md">
       <div
         onClick={handleClick}
+        onPointerDown={(event) => {
+          if (!onDrawRect || !current) return;
+
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const point = fraction(event);
+          setDraft({ from: point, to: point });
+        }}
+        onPointerMove={(event) => {
+          const point = fraction(event);
+          setDraft((current) => current && { from: current.from, to: point });
+        }}
+        onPointerUp={finishDraw}
+        onPointerCancel={() => setDraft(null)}
         style={{
           aspectRatio: current ? `${current.width} / ${current.height}` : "3 / 4",
           backgroundColor: tint ?? "#ffffff",
         }}
         className={`relative overflow-hidden rounded-md border border-gray-200 shadow-sm ${
-          onPick ? "cursor-crosshair" : ""
-        }`}
+          onPick || onDrawRect ? "cursor-crosshair" : ""
+        } ${onDrawRect ? "touch-none select-none" : ""}`}
       >
         {current && (
           // eslint-disable-next-line @next/next/no-img-element -- blob URL, not optimizable
@@ -124,6 +170,18 @@ export default function PagePreview({
           >
             {children(current)}
           </div>
+        )}
+
+        {draft && (
+          <div
+            className="pointer-events-none absolute border-2 border-dashed border-violet-600 bg-violet-500/20"
+            style={{
+              left: `${Math.min(draft.from.x, draft.to.x) * 100}%`,
+              top: `${Math.min(draft.from.y, draft.to.y) * 100}%`,
+              width: `${Math.abs(draft.to.x - draft.from.x) * 100}%`,
+              height: `${Math.abs(draft.to.y - draft.from.y) * 100}%`,
+            }}
+          />
         )}
 
         {!current && (

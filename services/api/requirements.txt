@@ -8,6 +8,7 @@ python-multipart>=0.0.20,<1.0
 # PDF processing
 pypdf>=5.0,<7.0
 pikepdf>=9.0,<10.0
+cryptography>=43.0  # AES-256 for protect/unlock
 PyMuPDF>=1.24,<2.0
 
 # PDF generation and image processing

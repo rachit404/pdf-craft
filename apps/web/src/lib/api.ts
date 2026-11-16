@@ -292,6 +292,103 @@ export async function fetchPagePreview(
   };
 }
 
+async function postSecurity<T>(
+  filename: string,
+  operation: string,
+  body?: unknown,
+): Promise<T> {
+  const response = await fetch(
+    `${API_BASE}/security/${encodeURIComponent(filename)}/${operation}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+
+  return handleResponse<T>(response);
+}
+
+export interface SecurityResult {
+  output_filename: string;
+  output_size_bytes: number;
+  message: string;
+}
+
+export interface ProtectOptions {
+  userPassword: string;
+  ownerPassword?: string;
+  allowPrinting: boolean;
+  allowCopying: boolean;
+  allowModifying: boolean;
+  allowAnnotations: boolean;
+}
+
+export const protectPDF = (filename: string, options: ProtectOptions) =>
+  postSecurity<SecurityResult>(filename, "protect", {
+    user_password: options.userPassword,
+    owner_password: options.ownerPassword || null,
+    allow_printing: options.allowPrinting,
+    allow_copying: options.allowCopying,
+    allow_modifying: options.allowModifying,
+    allow_annotations: options.allowAnnotations,
+  });
+
+export interface UnlockResponse extends SecurityResult {
+  was_encrypted: boolean;
+}
+
+export const unlockPDF = (filename: string, password: string) =>
+  postSecurity<UnlockResponse>(filename, "unlock", { password });
+
+/** Rectangle in points, origin at the top-left of the unrotated page. */
+export interface RedactionRegion {
+  page: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface RedactResponse extends SecurityResult {
+  areas_redacted: number;
+  search_matches: number;
+}
+
+export const redactPDF = (
+  filename: string,
+  regions: RedactionRegion[],
+  terms: string[],
+) => postSecurity<RedactResponse>(filename, "redact", { regions, terms });
+
+export interface SanitizeOptions {
+  metadata: boolean;
+  javascript: boolean;
+  attachments: boolean;
+  annotations: boolean;
+  links: boolean;
+  hiddenText: boolean;
+  formData: boolean;
+}
+
+export interface SanitizeResponse extends SecurityResult {
+  metadata_removed: boolean;
+  attachments_removed: number;
+  annotations_removed: number;
+  links_removed: number;
+}
+
+export const sanitizePDF = (filename: string, options: SanitizeOptions) =>
+  postSecurity<SanitizeResponse>(filename, "sanitize", {
+    metadata: options.metadata,
+    javascript: options.javascript,
+    attachments: options.attachments,
+    annotations: options.annotations,
+    links: options.links,
+    hidden_text: options.hiddenText,
+    form_data: options.formData,
+  });
+
 export interface AddTextOptions {
   text: string;
   /** PDF points from the bottom-left corner of the visible page. */

@@ -13,7 +13,7 @@ Backend already exists for all of these; mostly frontend.
 - Delivered beyond plan: page-preview endpoint (pulled forward from Part 3), tools registry with code-splitting, 2 pre-existing backend bugs fixed (add-text/add-image endpoints crashed).
 - Done when: each workflow produces a correct PDF verified by script (text present at position, image present, crop box changed, header/footer on all pages, background applied).
 
-## Part 2 — Convert workflows  [~] implemented, awaiting user verification (not committed)
+## Part 2 — Convert workflows  [x] committed 91f3aa2, pushed
 - Delivered: 7 workflows; LibreOffice optional engine (`engines/pdf/office.py`, auto-detected, basic fallback + UI warning); Images→PDF rewritten (PyMuPDF, A4-fit pages, JPEG passthrough, EXIF); DOCX/PPTX content validation; friendly download names (`?name=`); actionable encrypted-PDF message; `pdf-to-images` moved to `/conversions/{f}/to-images`. LibreOffice path is only stub-tested here (not installed on the dev PC) — user should test with a real install.
 - Workflows: **PDF→Images, Images→PDF, PDF→Word, PDF→Excel, PDF→PowerPoint, Word→PDF, PowerPoint→PDF**.
 - Backend: normalize `pdf-to-images` contract (path param; keep old route working or update tests), add zip/magic validation for DOCX/PPTX uploads, handle encrypted input with a clear error.
@@ -21,7 +21,8 @@ Backend already exists for all of these; mostly frontend.
 - Multi-file/zip results: download card handles `.zip`, `.docx`, `.xlsx`, `.pptx`.
 - Done when: outputs open correctly (DOCX/XLSX/PPTX loaded via python-docx/openpyxl/python-pptx in verification script; images zip has N pages).
 
-## Part 3 — Protect workflows  [ ]
+## Part 3 — Protect workflows  [~] implemented, awaiting user verification (not committed)
+- Delivered: Protect, Unlock, Redact (drag areas + search terms), Sanitize (per-option toggles). Fixed: unlock/redact endpoints were dead (positional-arg bug), protect permissions were ineffective without an owner password (now random owner pw), protect/unlock dropped metadata, sanitize left OpenAction/page/link/Names JavaScript in place, `cryptography` missing from requirements.
 - Workflows: **Protect (passwords + permissions), Unlock, Redact, Sanitize**.
 - Page preview endpoint already exists (added in Part 1: `GET /uploads/{f}/pages/{n}/preview`, JPEG + X-Page-Width/Height) and `shared/PagePreview.tsx`. Redact UI: draw/enter regions on page preview, coordinates mapped to PDF points.
 - Verify with scripts: encrypted file requires password; unlock round-trips; redacted text is **absent from extracted text** (not just covered); sanitize strips metadata/JS/attachments.
