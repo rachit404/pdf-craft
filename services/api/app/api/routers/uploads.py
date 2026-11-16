@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
 from PIL import Image, UnidentifiedImageError
 from pypdf.errors import PdfReadError
 
@@ -10,6 +10,7 @@ from app.services.pdf_service import (
     compress_document,
     extract_document_text,
     inspect_document,
+    preview_document_page,
 )
 from app.storage import UPLOAD_DIR, ensure_storage_dirs, sanitize_filename
 
@@ -43,6 +44,30 @@ def resolve_stored_file(filename: str) -> Path:
 
     if not file_path.is_file():
         raise HTTPException(404, "PDF file was not found.")
+
+    return file_path
+
+
+def resolve_stored_image(filename: str) -> Path:
+    """Return an uploaded PNG/JPEG inside the upload directory."""
+    try:
+        safe_filename = sanitize_filename(filename)
+    except ValueError as exc:
+        raise HTTPException(400, "Invalid image filename.") from exc
+
+    if safe_filename != filename or Path(safe_filename).suffix.lower() not in {
+        ".png", ".jpg", ".jpeg"
+    }:
+        raise HTTPException(400, "Invalid image filename.")
+
+    root = UPLOAD_DIR.resolve()
+    file_path = (root / safe_filename).resolve()
+
+    if file_path.parent != root:
+        raise HTTPException(400, "Invalid image path.")
+
+    if not file_path.is_file():
+        raise HTTPException(404, "Uploaded image was not found.")
 
     return file_path
 
@@ -216,3 +241,28 @@ def compress_uploaded_pdf(stored_filename: str) -> dict:
         raise HTTPException(422, str(exc)) from exc
     except OSError as exc:
         raise HTTPException(500, "Could not compress the PDF.") from exc
+
+
+@router.get("/{stored_filename}/pages/{page}/preview")
+def preview_pdf_page(
+    stored_filename: str,
+    page: int,
+    width: int = Query(900, ge=200, le=1600),
+) -> Response:
+    """Render a page as JPEG. X-Page-Width/Height give its size in PDF points."""
+    try:
+        rendered = preview_document_page(resolve_stored_file(stored_filename), page, width)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(422, "Could not render the PDF page.") from exc
+
+    return Response(
+        rendered["image"],
+        media_type="image/jpeg",
+        headers={
+            "X-Page-Width": f"{rendered['width']:.2f}",
+            "X-Page-Height": f"{rendered['height']:.2f}",
+            "Cache-Control": "private, max-age=300",
+        },
+    )

@@ -63,6 +63,8 @@ class AddTextRequest(BaseModel):
     x: float
     y: float
     font_size: int = Field(default=12, ge=6, le=72)
+    color: str = Field(default="#000000", pattern=r"^#[0-9a-fA-F]{6}$")
+    pages: list[int] | None = Field(default=None, min_length=1, max_length=500)
 
 
 class AddImageRequest(BaseModel):
@@ -71,3 +73,4 @@ class AddImageRequest(BaseModel):
     y: float
     width: float = Field(gt=0)
     height: float = Field(gt=0)
+    pages: list[int] | None = Field(default=None, min_length=1, max_length=500)

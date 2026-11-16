@@ -7,14 +7,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import ToolCard from "@/components/dashboard/ToolCard";
 
-import MergeWorkflow from "@/components/workflows/MergeWorkflow";
-import SplitWorkflow from "@/components/workflows/SplitWorkflow";
-import ExtractWorkflow from "@/components/workflows/ExtractWorkflow";
-import ReorderWorkflow from "@/components/workflows/ReorderWorkflow";
-import DeleteWorkflow from "@/components/workflows/DeleteWorkflow";
-import RotateWorkflow from "@/components/workflows/RotateWorkflow";
-import WatermarkWorkflow from "@/components/workflows/WatermarkWorkflow";
-import PageNumbersWorkflow from "@/components/workflows/PageNumbersWorkflow";
+import { workflows } from "@/components/workflows/registry";
 
 import { tools, type PDFTool, type ToolCategory } from "@/lib/tools";
 
@@ -61,24 +54,12 @@ export default function Home() {
   }
 
   if (selectedTool) {
+    const Workflow = workflows[selectedTool.id];
+
     return (
       <div className="min-h-screen bg-[#fafafa]">
-        {selectedTool.id === "merge" ? (
-          <MergeWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "split" ? (
-          <SplitWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "extract" ? (
-          <ExtractWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "reorder" ? (
-          <ReorderWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "delete" ? (
-          <DeleteWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "rotate" ? (
-          <RotateWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "watermark" ? (
-          <WatermarkWorkflow onBack={handleBackToDashboard} />
-        ) : selectedTool.id === "page-numbers" ? (
-          <PageNumbersWorkflow onBack={handleBackToDashboard} />
+        {Workflow ? (
+          <Workflow onBack={handleBackToDashboard} />
         ) : (
           <main className="mx-auto max-w-2xl px-6 py-24 text-center">
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">

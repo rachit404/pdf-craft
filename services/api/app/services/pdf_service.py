@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from app.engines.pdf.compressor import compress_pdf
 from app.engines.pdf.inspector import inspect_pdf
+from app.engines.pdf.renderer import render_page
 from app.engines.pdf.text_extractor import extract_pdf_text
 from app.engines.pdf import operations
 from app.storage import OUTPUT_DIR, ensure_storage_dirs
@@ -103,9 +104,47 @@ def crop_document(path: Path, left: float, bottom: float, right: float, top: flo
     return _run(operations.crop_pages, path, left=left, bottom=bottom, right=right, top=top)
 
 
-def text_document(path: Path, text: str, x: float, y: float, font_size: int) -> dict:
-    return _run(operations.add_text, path, text, x, y, font_size=font_size)
+def text_document(
+    path: Path,
+    text: str,
+    x: float,
+    y: float,
+    font_size: int,
+    color: str,
+    pages: list[int] | None,
+) -> dict:
+    return _run(
+        operations.add_text,
+        path,
+        text=text,
+        x=x,
+        y=y,
+        font_size=font_size,
+        color=color,
+        pages=pages,
+    )
 
 
-def image_document(path: Path, image_path: Path, x: float, y: float, width: float, height: float) -> dict:
-    return _run(operations.add_image, path, image_path, x, y, width, height)
+def image_document(
+    path: Path,
+    image_path: Path,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    pages: list[int] | None,
+) -> dict:
+    return _run(
+        operations.add_image,
+        path,
+        image_path=image_path,
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+        pages=pages,
+    )
+
+
+def preview_document_page(path: Path, page: int, width: int) -> dict:
+    return render_page(path, page, width)

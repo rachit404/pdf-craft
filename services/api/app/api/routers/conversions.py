@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.api.routers.uploads import resolve_stored_file
+from app.api.routers.uploads import resolve_stored_file, resolve_stored_image
 from app.schemas.conversions import (
     ImagesToPDFRequest,
     PDFToImagesRequest,
@@ -30,29 +30,6 @@ def _execute(function, *args, **kwargs):
         raise HTTPException(422, "Could not process the supplied document.") from exc
     except Exception as exc:
         raise HTTPException(422, "Conversion failed. Check the input document.") from exc
-
-
-def _resolve_image(filename: str) -> Path:
-    try:
-        safe_name = sanitize_filename(filename)
-    except ValueError as exc:
-        raise HTTPException(400, "Invalid image filename.") from exc
-
-    if safe_name != filename or Path(safe_name).suffix.lower() not in {
-        ".png", ".jpg", ".jpeg"
-    }:
-        raise HTTPException(400, "Invalid image filename.")
-
-    root = UPLOAD_DIR.resolve()
-    path = (root / safe_name).resolve()
-
-    if path.parent != root:
-        raise HTTPException(400, "Invalid image path.")
-
-    if not path.is_file():
-        raise HTTPException(404, "Uploaded image was not found.")
-
-    return path
 
 
 async def _save_document_upload(file: UploadFile, extension: str) -> Path:
@@ -110,7 +87,7 @@ def convert_pdf_to_images(
 
 @router.post("/images-to-pdf")
 def convert_images_to_pdf(request: ImagesToPDFRequest):
-    paths = [_resolve_image(name) for name in request.filenames]
+    paths = [resolve_stored_image(name) for name in request.filenames]
     return _execute(conversion_service.images_to_pdf, paths)
 
 

@@ -38,21 +38,45 @@ export interface SplitResponse {
   parts: number;
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let message = `Request failed (${response.status})`;
+async function readError(response: Response): Promise<Error> {
+  let message = `Request failed (${response.status})`;
 
-    try {
-      const body = await response.json();
-      message = body.detail || body.message || message;
-    } catch {
-      // Keep the HTTP status message.
-    }
+  try {
+    const body = await response.json();
+    const detail = body.detail ?? body.message;
 
-    throw new Error(message);
+    // FastAPI validation errors arrive as a list of { msg } objects.
+    message = Array.isArray(detail)
+      ? detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join("; ") || message
+      : detail || message;
+  } catch {
+    // Keep the HTTP status message.
   }
 
+  return new Error(message);
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) throw await readError(response);
+
   return response.json() as Promise<T>;
+}
+
+async function postOperation<T = PDFOperationResponse>(
+  filename: string,
+  operation: string,
+  body: unknown,
+): Promise<T> {
+  const response = await fetch(
+    `${API_BASE}/operations/${encodeURIComponent(filename)}/${operation}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+
+  return handleResponse<T>(response);
 }
 
 export async function uploadPDF(file: File): Promise<UploadedPDF> {
@@ -222,6 +246,113 @@ export async function numberPDFPages(
   );
 
   return handleResponse<PDFOperationResponse>(response);
+}
+
+export interface UploadedImage {
+  original_filename: string;
+  stored_filename: string;
+  size_bytes: number;
+}
+
+export interface PagePreview {
+  /** Object URL of the rendered page; release it with URL.revokeObjectURL. */
+  url: string;
+  /** Page size in PDF points. */
+  width: number;
+  height: number;
+}
+
+export async function uploadImage(file: File): Promise<UploadedImage> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE}/uploads/image`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return handleResponse<UploadedImage>(response);
+}
+
+export async function fetchPagePreview(
+  filename: string,
+  page: number,
+  width = 900,
+): Promise<PagePreview> {
+  const response = await fetch(
+    `${API_BASE}/uploads/${encodeURIComponent(filename)}/pages/${page}/preview?width=${width}`,
+  );
+
+  if (!response.ok) throw await readError(response);
+
+  return {
+    url: URL.createObjectURL(await response.blob()),
+    width: Number(response.headers.get("X-Page-Width")),
+    height: Number(response.headers.get("X-Page-Height")),
+  };
+}
+
+export interface AddTextOptions {
+  text: string;
+  /** PDF points from the bottom-left corner of the visible page. */
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  /** 1-based pages; omit for every page. */
+  pages?: number[];
+}
+
+export function addTextToPDF(filename: string, options: AddTextOptions) {
+  const { fontSize, ...rest } = options;
+
+  return postOperation(filename, "add-text", { ...rest, font_size: fontSize });
+}
+
+export interface AddImageOptions {
+  imageFilename: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pages?: number[];
+}
+
+export function addImageToPDF(filename: string, options: AddImageOptions) {
+  const { imageFilename, ...rest } = options;
+
+  return postOperation(filename, "add-image", {
+    ...rest,
+    image_filename: imageFilename,
+  });
+}
+
+export function addHeaderFooter(
+  filename: string,
+  header: string | null,
+  footer: string | null,
+) {
+  return postOperation(filename, "header-footer", { header, footer });
+}
+
+export function addBackground(
+  filename: string,
+  red: number,
+  green: number,
+  blue: number,
+) {
+  return postOperation(filename, "background", { red, green, blue });
+}
+
+export interface CropMargins {
+  left: number;
+  bottom: number;
+  right: number;
+  top: number;
+}
+
+export function cropPDF(filename: string, margins: CropMargins) {
+  return postOperation(filename, "crop", margins);
 }
 
 export function getDownloadUrl(filename: string): string {

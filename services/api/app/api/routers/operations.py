@@ -1,7 +1,7 @@
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 
-from app.api.routers.uploads import resolve_stored_file
+from app.api.routers.uploads import resolve_stored_file, resolve_stored_image
 from app.schemas.operations import (
     AddImageRequest,
     AddTextRequest,
@@ -17,7 +17,6 @@ from app.schemas.operations import (
     WatermarkRequest,
 )
 from app.services import pdf_service
-from app.storage import UPLOAD_DIR, sanitize_filename
 
 
 router = APIRouter(prefix="/operations", tags=["PDF Operations"])
@@ -95,27 +94,27 @@ def crop(filename: str, request: CropRequest):
 
 @router.post("/{filename}/add-text")
 def add_text(filename: str, request: AddTextRequest):
-    return _execute(pdf_service.text_document, resolve_stored_file(filename), request.text, request.x, request.y, request.font_size)
+    return _execute(
+        pdf_service.text_document,
+        resolve_stored_file(filename),
+        request.text,
+        request.x,
+        request.y,
+        request.font_size,
+        request.color,
+        request.pages,
+    )
 
 
 @router.post("/{filename}/add-image")
 def add_image(filename: str, request: AddImageRequest):
-    try:
-        image_name = sanitize_filename(request.image_filename)
-        if image_name != request.image_filename:
-            raise ValueError("Invalid image filename.")
-        image_path = (UPLOAD_DIR / image_name).resolve()
-        if image_path.parent != UPLOAD_DIR.resolve() or not image_path.is_file():
-            raise FileNotFoundError("Uploaded image was not found.")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
     return _execute(
         pdf_service.image_document,
         resolve_stored_file(filename),
-        image_path,
+        resolve_stored_image(request.image_filename),
         request.x,
         request.y,
         request.width,
         request.height,
+        request.pages,
     )

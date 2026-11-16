@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import zipfile
 
@@ -10,7 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from PIL import Image
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter, Transformation
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 
@@ -297,29 +298,67 @@ def _overlay_page(
     return PdfReader(buffer)
 
 
+def _merge_overlay(page, draw_callback, over: bool = True) -> None:
+    """Draw onto the page's visible (crop) box, in box-relative coordinates.
+
+    The origin is the bottom-left corner of the visible area, which is what
+    the page preview shows, so (x, y) in points maps 1:1 to the preview.
+    """
+    box = page.cropbox
+    overlay = _overlay_page(float(box.width), float(box.height), draw_callback)
+
+    page.merge_transformed_page(
+        overlay.pages[0],
+        Transformation().translate(float(box.left), float(box.bottom)),
+        over=over,
+    )
+
+
 def _apply_overlay(
     path: Path,
     output: Path,
     draw_callback,
+    pages: list[int] | None = None,
 ) -> dict:
     reader = _reader(path)
+    targets = (
+        set(_page_numbers(pages, len(reader.pages)))
+        if pages
+        else set(range(1, len(reader.pages) + 1))
+    )
     writer = PdfWriter()
 
-    for page in reader.pages:
-        width = float(page.mediabox.width)
-        height = float(page.mediabox.height)
-
-        overlay = _overlay_page(
-            width,
-            height,
-            draw_callback,
-        )
-
+    for number, page in enumerate(reader.pages, start=1):
         # Attach page to writer before modifying its contents.
         writer.add_page(page)
-        writer.pages[-1].merge_page(overlay.pages[0])
+
+        if number in targets:
+            _merge_overlay(writer.pages[-1], draw_callback)
 
     return _save(writer, output)
+
+
+_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
+
+
+def _hex_color(value: str) -> Color:
+    if not _HEX_COLOR.fullmatch(value):
+        raise ValueError("Color must use the #RRGGBB format.")
+
+    return Color(*(int(value[i : i + 2], 16) / 255 for i in (1, 3, 5)))
+
+
+def _latin_text(value: str) -> str:
+    """Built-in PDF fonts only cover Latin (WinAnsi) characters."""
+    try:
+        value.encode("cp1252")
+    except UnicodeEncodeError as exc:
+        raise ValueError(
+            "Text contains characters the built-in font cannot render. "
+            "Use Latin characters only."
+        ) from exc
+
+    return value
 
 
 # ---------------------------------------------------------
@@ -417,6 +456,8 @@ def add_header_footer(
     if not header and not footer:
         raise ValueError("Provide a header or footer.")
 
+    _latin_text(f"{header or ''}{footer or ''}")
+
     def draw(pdf, width, height):
         pdf.setFont("Helvetica", 9)
 
@@ -469,14 +510,10 @@ def add_background(
     writer = PdfWriter()
 
     for page in reader.pages:
-        width = float(page.mediabox.width)
-        height = float(page.mediabox.height)
+        writer.add_page(page)
 
-        overlay = _overlay_page(width, height, draw)
-
-        # Background first, original content second.
-        writer.add_page(overlay.pages[0])
-        writer.pages[-1].merge_page(page)
+        # over=False places the fill beneath the original content.
+        _merge_overlay(writer.pages[-1], draw, over=False)
 
     return _save(writer, output)
 
@@ -497,7 +534,8 @@ def crop_pages(
     writer = PdfWriter()
 
     for page in reader.pages:
-        box = page.mediabox
+        # Crop relative to the visible area so repeated crops accumulate.
+        box = page.cropbox
 
         box_left = float(box.left)
         box_bottom = float(box.bottom)
@@ -543,6 +581,8 @@ def add_text(
     x: float,
     y: float,
     font_size: int = 12,
+    pages: list[int] | None = None,
+    color: str = "#000000",
 ) -> dict:
     if not text.strip() or len(text) > 1000:
         raise ValueError(
@@ -554,16 +594,23 @@ def add_text(
             "Font size must be between 6 and 72."
         )
 
+    _latin_text(text)
+    fill = _hex_color(color)
+    lines = text.splitlines()
+
     def draw(pdf, width, height):
         if not 0 <= x <= width or not 0 <= y <= height:
             raise ValueError(
                 "Text position is outside the page."
             )
 
+        pdf.setFillColor(fill)
         pdf.setFont("Helvetica", font_size)
-        pdf.drawString(x, y, text)
 
-    return _apply_overlay(path, output, draw)
+        for index, line in enumerate(lines):
+            pdf.drawString(x, y - index * font_size * 1.2, line)
+
+    return _apply_overlay(path, output, draw, pages)
 
 
 # ---------------------------------------------------------
@@ -578,6 +625,7 @@ def add_image(
     y: float,
     width: float,
     height: float,
+    pages: list[int] | None = None,
 ) -> dict:
     if not image_path.is_file():
         raise FileNotFoundError("Image file was not found.")
@@ -615,4 +663,4 @@ def add_image(
             mask="auto",
         )
 
-    return _apply_overlay(path, output, draw)
+    return _apply_overlay(path, output, draw, pages)
