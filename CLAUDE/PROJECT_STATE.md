@@ -49,6 +49,11 @@ All 28 tools are reachable from the Studio (Part 8); the old one-screen-per-tool
 - Engine `engines/pdf/power.py` (blank pages, forms, details, size target, greyscale, compare, annotate, deskew), stamps/tokens in `engines/pdf/operations.py`, REST `api/routers/tools.py`, services `power_service.py`, `search_service.py`, `search_index.py`, flow step cache `flows/cache.py`. 36 registry operations. Studio panels in `components/studio/panels.tsx`, signature pad `SignaturePad.tsx`.
 - Verified in a browser: blank pages, form fill, stamp, signature pad, compare, save as flow, deskew, mark up; axe-core clean on all routes (light, and dark for main ones). Not browser-tested: greyscale, size target, details editor, note placement, ZIP button clicks (ZIP and search verified through the API and tests).
 
+### Navigation and dialogs (UI pass)
+- No sidebar: `AppShell` is a top navbar (logo, Tools, Flows, Files, search Ctrl K, theme, settings, sign out; a menu on small screens). Studio counts as Files.
+- Flows: clicking a step opens `NodeModal` (settings left, preview right: what goes in / what it makes; "Run to here and preview" runs only the steps leading to it). Results have Preview (Modal + `FilePreview`), Edit and Download. `FilePreview` shows PDFs page by page, images as they are, and a download card for Word/PowerPoint/Excel/ZIP (no preview for those). Palette search, hover actions on steps, animated lines while running, Enter opens the selected step.
+- Reusable `components/ui/Modal.tsx` (portal, Escape, focus trap, focus restored). Studio: Ctrl+Z / Ctrl+Y.
+
 ### Flows (Part 9)
 - `components/flows/FlowsPage.tsx` (canvas, palette, inspector, toolbar), `StepNodeView.tsx`, `lib/flows.ts` (canvas <-> server definition, templates, "run to here" = a step plus everything feeding it). Backend: `services/saved_flows.py`, `/flows/saved`.
 - Verified in a browser (isolated stack): template load, run with per-step status, results, save, Run to here, validation messages. Backend 258 tests, lint and build clean. Not verified: drag from palette, drawing a connection by hand, import, themes other than light, small screens.

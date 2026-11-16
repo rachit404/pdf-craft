@@ -12,14 +12,15 @@ import {
   type Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Download, FolderOpen, LayoutTemplate, Loader2, Play, Save, Square, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FolderOpen, LayoutTemplate, Loader2, Play, Save, Search, Square, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import SchemaForm, { type Settings } from "@/components/studio/SchemaForm";
+import FilePreview from "@/components/studio/FilePreview";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import Button from "@/components/ui/Button";
 import { Input } from "@/components/ui/controls";
+import Modal from "@/components/ui/Modal";
 import {
   cancelRun,
   deleteSavedFlow,
@@ -52,9 +53,8 @@ import {
 } from "@/lib/flows";
 import { timeAgo } from "@/lib/format";
 import type { Route } from "@/lib/route";
-import { cn } from "@/lib/utils";
-
-import StepNodeView, { SpecsContext } from "./StepNodeView";
+import NodeModal from "./NodeModal";
+import StepNodeView, { NodeActionsContext, SpecsContext } from "./StepNodeView";
 
 const nodeTypes = { step: StepNodeView };
 const FINISHED = ["done", "failed", "cancelled"];
@@ -92,6 +92,9 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
   const [runId, setRunId] = useState<string | null>(null);
   const [result, setResult] = useState<FlowRunDetail | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [modalId, setModalId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<StoredFileInfo | null>(null);
+  const [paletteQuery, setPaletteQuery] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
 
@@ -335,11 +338,34 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
     </button>
   );
 
-  const spec = selected ? specs.get(selected.data.op) : undefined;
-  const sourceFiles = selected?.data.op === "source" ? library.filter((file) => file.kind === selected.data.kind && file.available) : [];
+  const modalNode = modalId ? nodes.find((node) => node.id === modalId) : undefined;
+  const modalInputs = modalNode
+    ? [...new Set(edges.filter((edge) => edge.target === modalNode.id).flatMap((edge) => states[edge.source]?.items ?? []))]
+    : [];
+  const needle = paletteQuery.trim().toLowerCase();
+  const matches = (label: string) => !needle || label.toLowerCase().includes(needle);
+
+  const actions = useMemo(
+    () => ({
+      open: (id: string) => {
+        setNodes((existing) => existing.map((node) => ({ ...node, selected: node.id === id })));
+        setModalId(id);
+      },
+      remove: (id: string) => {
+        setNodes((existing) => existing.filter((node) => node.id !== id));
+        setEdges((existing) => existing.filter((edge) => edge.source !== id && edge.target !== id));
+        setIssues([]);
+        setModalId((current) => (current === id ? null : current));
+      },
+    }),
+    [setNodes, setEdges],
+  );
+
+  const drawnEdges = useMemo(() => (running ? edges.map((edge) => ({ ...edge, animated: true })) : edges), [edges, running]);
 
   return (
     <SpecsContext.Provider value={specs}>
+      <NodeActionsContext.Provider value={actions}>
       <div className="flex h-full min-h-0 flex-col">
         {/* Toolbar */}
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-2">
@@ -427,25 +453,57 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
 
         <div className="flex min-h-0 flex-1">
           {/* Palette */}
-          <aside className="w-48 shrink-0 overflow-y-auto border-r border-line bg-panel p-2" aria-label="Steps">
-            <p className="px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">Start</p>
-            {SOURCE_KINDS.map((kind) => paletteItem(`source-${kind.id}`, kind.label, "source", kind.id))}
-            {groups.map(([category, items]) => (
-              <div key={category} className="mt-2">
-                <p className="px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">{category}</p>
-                {items.map((item) => paletteItem(item.id, item.label, item.id))}
-              </div>
-            ))}
-            <p className="mt-2 px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">Finish</p>
-            {paletteItem("output", "Result", "output")}
+          <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-panel" aria-label="Steps">
+            <div className="relative p-2">
+              <Search className="pointer-events-none absolute left-4 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" strokeWidth={1.75} />
+              <input
+                value={paletteQuery}
+                onChange={(event) => setPaletteQuery(event.target.value)}
+                placeholder="Find a step"
+                aria-label="Find a step"
+                className="h-8 w-full rounded-ctl border border-line-strong bg-surface pl-7 pr-2 text-[0.82rem] placeholder:text-fg-subtle"
+              />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+              {SOURCE_KINDS.some((kind) => matches(kind.label)) && (
+                <>
+                  <p className="px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">Start</p>
+                  {SOURCE_KINDS.filter((kind) => matches(kind.label)).map((kind) => paletteItem(`source-${kind.id}`, kind.label, "source", kind.id))}
+                </>
+              )}
+              {groups.map(([category, items]) => {
+                const shownItems = items.filter((item) => matches(item.label) || matches(category));
+
+                return shownItems.length === 0 ? null : (
+                  <div key={category} className="mt-2">
+                    <p className="px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">{category}</p>
+                    {shownItems.map((item) => paletteItem(item.id, item.label, item.id))}
+                  </div>
+                );
+              })}
+              {matches("result") && (
+                <>
+                  <p className="mt-2 px-2 pb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-fg-subtle">Finish</p>
+                  {paletteItem("output", "Result", "output")}
+                </>
+              )}
+            </div>
           </aside>
 
           {/* Canvas */}
-          <div className="relative min-w-0 flex-1 bg-canvas" style={{ colorScheme: theme.mode }} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
+          <div className="relative min-w-0 flex-1 bg-canvas" style={{ colorScheme: theme.mode }} onDragOver={(event) => event.preventDefault()}
+            onDrop={onDrop}
+            onKeyDown={(event) => {
+              const onNode = (event.target as HTMLElement).closest?.(".react-flow__node");
+
+              if (event.key === "Enter" && onNode && selected) setModalId(selected.id);
+            }}
+          >
             <ReactFlow
               nodes={shown}
-              edges={edges}
+              edges={drawnEdges}
               nodeTypes={nodeTypes}
+              onNodeClick={(_, node) => setModalId(node.id)}
               onNodesChange={onNodesChange}
               onEdgesChange={(changes) => {
                 onEdgesChange(changes);
@@ -466,112 +524,13 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
                 <div className="max-w-xs text-center">
                   <p className="font-medium">Build a flow</p>
                   <p className="mt-1 text-[0.85rem] text-fg-subtle">
-                    Click or drag steps from the left, join them by dragging from one dot to the next, or open a template. Each step passes its result on, so nothing is downloaded in between.
+                    Click or drag steps from the left, join them by dragging from one dot to the next, or open a template. Click any step to open it, change its settings and preview its files.
                   </p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Inspector */}
-          <aside className="w-72 shrink-0 overflow-y-auto border-l border-line bg-panel p-4 lg:w-80" aria-label="Step options">
-            {!selected ? (
-              <p className="text-[0.85rem] text-fg-subtle">Select a step to change its settings. Press Delete to remove the selected step or connection.</p>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-[0.95rem] font-semibold">
-                    {selected.data.op === "source" ? "Files to start with" : selected.data.op === "output" ? "Result" : spec?.label}
-                  </h2>
-                  <p className="mt-0.5 text-[0.8rem] text-fg-muted">
-                    {selected.data.op === "source"
-                      ? "Choose the files this flow starts with. Choose several to run the whole flow on each of them."
-                      : selected.data.op === "output"
-                        ? "Files reaching this step are what you keep."
-                        : spec?.description}
-                  </p>
-                </div>
-
-                {selected.data.op === "source" && (
-                  <>
-                    <label className="block">
-                      <span className="mb-1.5 block text-[0.8rem] font-medium text-fg-muted">Type of file</span>
-                      <select
-                        value={selected.data.kind}
-                        onChange={(event) => updateData(selected.id, { kind: event.target.value, files: [] })}
-                        className="h-8 w-full rounded-ctl border border-line-strong bg-surface px-2 text-[0.85rem]"
-                      >
-                        {SOURCE_KINDS.map((kind) => (
-                          <option key={kind.id} value={kind.id}>{kind.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <div>
-                      <span className="mb-1.5 block text-[0.8rem] font-medium text-fg-muted">From your files</span>
-                      {sourceFiles.length === 0 ? (
-                        <p className="text-[0.8rem] text-fg-subtle">None of this type yet.</p>
-                      ) : (
-                        <ul className="max-h-56 space-y-0.5 overflow-y-auto rounded-ctl border border-line bg-surface p-1">
-                          {sourceFiles.map((file) => {
-                            const on = selected.data.files?.includes(file.name) ?? false;
-
-                            return (
-                              <li key={file.name}>
-                                <label className={cn("flex cursor-pointer items-center gap-2 rounded-ctl px-2 py-1 text-[0.82rem] hover:bg-hover", on && "bg-accent-soft/50")}>
-                                  <input
-                                    type="checkbox"
-                                    checked={on}
-                                    className="accent-[var(--accent)]"
-                                    onChange={(event) =>
-                                      updateData(selected.id, {
-                                        files: event.target.checked ? [...(selected.data.files ?? []), file.name] : (selected.data.files ?? []).filter((item) => item !== file.name),
-                                      })
-                                    }
-                                  />
-                                  <span className="min-w-0 flex-1 truncate">{file.original_name}</span>
-                                  <span className="text-[0.7rem] text-fg-subtle">{timeAgo(file.created_at)}</span>
-                                </label>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                    <label className="block">
-                      <Button className="w-full" disabled={uploading} onClick={(event) => (event.currentTarget.nextElementSibling as HTMLInputElement).click()}>
-                        {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" strokeWidth={1.75} />} Add from this computer
-                      </Button>
-                      <input type="file" multiple className="hidden" onChange={(event) => void attach(selected, event.target.files)} />
-                    </label>
-                  </>
-                )}
-
-                {spec && (
-                  <SchemaForm
-                    key={selected.id}
-                    operation={spec.id}
-                    value={selected.data.params as Settings}
-                    onChange={(value) => updateData(selected.id, { params: value })}
-                    pageCount={100000}
-                  />
-                )}
-
-                {states[selected.id]?.error && <p className="text-[0.8rem] text-danger">{states[selected.id].error}</p>}
-
-                <Button
-                  variant="danger"
-                  className="w-full"
-                  onClick={() => {
-                    setNodes((existing) => existing.filter((node) => node.id !== selected.id));
-                    setEdges((existing) => existing.filter((edge) => edge.source !== selected.id && edge.target !== selected.id));
-                    changed();
-                  }}
-                >
-                  <Trash2 className="size-4" strokeWidth={1.75} /> Remove this step
-                </Button>
-              </div>
-            )}
-          </aside>
         </div>
 
         {/* Problems and results */}
@@ -598,9 +557,12 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
                   {result.files.map((file) => (
                     <li key={file.name} className="flex items-center gap-2 rounded-ctl border border-line bg-surface px-2.5 py-1 text-[0.8rem]">
                       <span className="max-w-48 truncate">{file.original_name}</span>
+                      <button type="button" className="inline-flex items-center gap-1 font-medium text-accent hover:underline" onClick={() => setPreviewFile(file)}>
+                        <Eye className="size-3.5" strokeWidth={1.75} /> Preview
+                      </button>
                       {file.kind === "pdf" && (
                         <button type="button" className="font-medium text-accent hover:underline" onClick={() => navigate({ name: "studio", file: file.name })}>
-                          Open
+                          Edit
                         </button>
                       )}
                       <a href={getFileDownloadUrl(file.name)} download className="font-medium text-accent hover:underline">
@@ -614,6 +576,54 @@ function Editor({ navigate, openId }: { navigate: (route: Route) => void; openId
           </div>
         )}
       </div>
+      {modalNode && (
+        <NodeModal
+          key={modalNode.id}
+          node={modalNode}
+          spec={specs.get(modalNode.data.op)}
+          state={states[modalNode.id]}
+          issues={issues.filter((issue) => issue.node === modalNode.id).map((issue) => issue.message)}
+          inputNames={modalInputs}
+          library={library}
+          running={running}
+          uploading={uploading}
+          onUpdate={(patch) => updateData(modalNode.id, patch)}
+          onAttach={(files) => void attach(modalNode, files)}
+          onRemove={() => actions.remove(modalNode.id)}
+          onClose={() => setModalId(null)}
+          onPreviewRun={() => void run(modalNode.id)}
+        />
+      )}
+
+      <Modal
+        open={previewFile !== null}
+        onClose={() => setPreviewFile(null)}
+        size="lg"
+        title={previewFile?.original_name ?? "Preview"}
+        description="A result of this flow. It is also stored under Files."
+        footer={
+          previewFile && (
+            <>
+              <span className="flex-1" />
+              {previewFile.kind === "pdf" && (
+                <Button
+                  onClick={() => {
+                    navigate({ name: "studio", file: previewFile.name });
+                  }}
+                >
+                  Edit in the Studio
+                </Button>
+              )}
+              <a href={getFileDownloadUrl(previewFile.name)} download className="inline-flex h-8 items-center gap-1.5 rounded-ctl border border-accent bg-accent px-3 text-[0.85rem] font-medium text-on-accent hover:bg-accent-hover">
+                <Download className="size-4" strokeWidth={1.75} /> Download
+              </a>
+            </>
+          )
+        }
+      >
+        <div className="bg-canvas/60 p-5">{previewFile && <FilePreview names={[previewFile.name]} />}</div>
+      </Modal>
+      </NodeActionsContext.Provider>
     </SpecsContext.Provider>
   );
 }

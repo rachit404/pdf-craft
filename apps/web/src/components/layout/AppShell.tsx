@@ -2,7 +2,6 @@
 
 import {
   FolderOpen,
-  LockKeyhole,
   LogOut,
   Menu,
   Moon,
@@ -21,7 +20,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import Button from "@/components/ui/Button";
 import { Kbd } from "@/components/ui/controls";
 import type { Route } from "@/lib/route";
-import { categories, tools, type ToolCategory } from "@/lib/tools";
+import { tools } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
 import CommandPalette from "./CommandPalette";
@@ -33,180 +32,83 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-function NavButton({
-  active,
-  onClick,
-  icon: Icon,
-  children,
-  sub = false,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon?: LucideIcon;
-  children: ReactNode;
-  sub?: boolean;
-  count?: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "flex w-full items-center gap-2.5 rounded-ctl px-2.5 text-left font-medium transition-colors",
-        sub ? "h-7 pl-9 text-[0.8rem]" : "h-8 text-[0.85rem]",
-        active ? "bg-accent-soft font-semibold text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
-      )}
-    >
-      {Icon && (
-        <Icon
-          className="size-4 shrink-0"
-          strokeWidth={1.75}
-        />
-      )}
-      <span className="flex-1 truncate">{children}</span>
-      {count !== undefined && (
-        <span className="font-mono text-[0.72rem] text-fg-subtle">{count}</span>
-      )}
-    </button>
-  );
+const LINKS: { id: "tools" | "flows" | "files"; label: string; icon: LucideIcon; route: Route }[] = [
+  { id: "tools", label: "Tools", icon: Wrench, route: { name: "tools", category: "All tools" } },
+  { id: "flows", label: "Flows", icon: Workflow, route: { name: "flows" } },
+  { id: "files", label: "Files", icon: FolderOpen, route: { name: "files" } },
+];
+
+/** The studio belongs to Files: it is where a file is edited. */
+function section(route: Route): string {
+  return route.name === "studio" ? "files" : route.name;
 }
 
-function activeCategory(route: Route): ToolCategory | null {
-  if (route.name === "tools") return route.category;
-
-  return null;
-}
-
-/** Navigation, search and the page frame. */
+/** The top bar on every page, and the frame around the page. */
 export default function AppShell({ route, navigate, onOpenTool, children }: AppShellProps) {
   const { authRequired, signOut } = useAuth();
   const { theme, select } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const category = activeCategory(route);
-  const onToolsPage = route.name === "tools";
-  const compact = route.name === "studio";
-  const fullBleed = compact || route.name === "flows";
+  const fullBleed = route.name === "studio" || route.name === "flows";
+  const current = section(route);
 
   function go(next: Route) {
     setMenuOpen(false);
     navigate(next);
   }
 
-  const sidebar = (
-    <div className="flex h-full w-60 flex-col border-r border-line bg-panel">
-      <div className="flex h-12 shrink-0 items-center justify-between px-4">
-        <div className="flex items-center gap-2.5">
-          <div className="h-6 w-[1.15rem] rounded-[3px_8px_3px_3px] bg-gradient-to-br from-accent to-accent-hover shadow-sm" aria-hidden />
-          <span className="text-[0.95rem] font-semibold tracking-tight">PDF Craft</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setMenuOpen(false)}
-          aria-label="Close menu"
-          className="rounded-ctl p-1.5 text-fg-muted hover:bg-hover lg:hidden"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-3 pt-1" aria-label="Main">
-        <NavButton
-          icon={Wrench}
-          active={onToolsPage && category === "All tools"}
-          onClick={() => go({ name: "tools", category: "All tools" })}
-          count={tools.length}
-        >
-          Tools
-        </NavButton>
-        {categories
-          .filter((item) => item !== "All tools")
-          .map((item) => (
-            <NavButton
-              key={item}
-              sub
-              active={onToolsPage && category === item}
-              onClick={() => go({ name: "tools", category: item })}
-              count={tools.filter((tool) => tool.category === item).length}
-            >
-              {item}
-            </NavButton>
-          ))}
-
-        <div className="pt-2">
-          <NavButton icon={Workflow} active={route.name === "flows"} onClick={() => go({ name: "flows" })}>
-            Flows
-          </NavButton>
-          <NavButton icon={FolderOpen} active={route.name === "files"} onClick={() => go({ name: "files" })}>
-            Files
-          </NavButton>
-          <NavButton icon={Settings} active={route.name === "settings"} onClick={() => go({ name: "settings" })}>
-            Settings
-          </NavButton>
-        </div>
-      </nav>
-
-      <div className="shrink-0 space-y-2 border-t border-line p-3">
-        <div className="flex items-start gap-2 text-[0.75rem] leading-snug text-fg-muted">
-          <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-ok" strokeWidth={1.75} />
-          Files stay on this server and are deleted automatically.
-        </div>
-        {authRequired && (
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="flex h-7 w-full items-center gap-2 rounded-ctl px-2 text-[0.8rem] font-medium text-fg-muted hover:bg-hover hover:text-fg"
-          >
-            <LogOut className="size-3.5" strokeWidth={1.75} />
-            Sign out
-          </button>
-        )}
-      </div>
-    </div>
-  );
-
   return (
-    <div className="flex h-screen overflow-hidden bg-ground text-fg">
-      <aside className={compact ? "hidden" : "hidden lg:block"}>{sidebar}</aside>
+    <div className="flex h-screen flex-col overflow-hidden bg-ground text-fg">
+      <a href="#main" className="sr-only z-50 rounded-ctl bg-surface px-3 py-2 text-[0.85rem] font-medium focus:not-sr-only focus:absolute focus:left-3 focus:top-3">
+        Skip to the page
+      </a>
 
-      {menuOpen && (
-        <div className={cn("fixed inset-0 z-40", !compact && "lg:hidden")}>
-          <button
-            type="button"
-            aria-label="Close menu"
-            onClick={() => setMenuOpen(false)}
-            className="absolute inset-0 bg-black/40"
-          />
-          <div className="absolute inset-y-0 left-0">{sidebar}</div>
-        </div>
-      )}
+      <header className="relative z-30 shrink-0 border-b border-line bg-panel/90 backdrop-blur">
+        <div className="flex h-14 items-center gap-2 px-3 sm:px-5">
+          <button type="button" onClick={() => go({ name: "tools", category: "All tools" })} className="mr-1 flex items-center gap-2.5 rounded-ctl py-1 pr-2 hover:opacity-90" aria-label="PDF Craft home">
+            <span className="h-6 w-[1.15rem] rounded-[3px_8px_3px_3px] bg-gradient-to-br from-accent to-accent-hover shadow-sm" aria-hidden />
+            <span className="text-[1rem] font-semibold tracking-tight">PDF Craft</span>
+          </button>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-3 sm:px-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={compact ? "" : "lg:hidden"}
-            aria-label="Open menu"
-            onClick={() => setMenuOpen(true)}
-          >
-            <Menu className="size-4" />
-          </Button>
+          <nav aria-label="Main" className="hidden h-full items-stretch gap-1 md:flex">
+            {LINKS.map((link) => {
+              const active = current === link.id;
+
+              return (
+                <button
+                  key={link.id}
+                  type="button"
+                  onClick={() => go(link.route)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex items-center gap-2 px-3 text-[0.88rem] font-medium transition-colors",
+                    active ? "text-accent" : "text-fg-muted hover:text-fg",
+                  )}
+                >
+                  <link.icon className="size-4" strokeWidth={1.75} />
+                  {link.label}
+                  {link.id === "tools" && <span className="font-mono text-[0.68rem] text-fg-subtle">{tools.length}</span>}
+                  {active && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" aria-hidden />}
+                </button>
+              );
+            })}
+          </nav>
+
+          <span className="flex-1" />
 
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="flex h-8 w-full max-w-sm items-center gap-2 rounded-ctl border border-line-strong bg-surface px-2.5 text-left text-[0.85rem] text-fg-subtle hover:border-fg-subtle"
+            className="hidden h-9 w-64 items-center gap-2 rounded-ctl border border-line-strong bg-surface px-2.5 text-left text-[0.85rem] text-fg-subtle transition-colors hover:border-fg-subtle sm:flex lg:w-80"
           >
             <Search className="size-4 shrink-0" strokeWidth={1.75} />
             <span className="flex-1 truncate">Find a tool or page</span>
-            <Kbd className="hidden sm:inline">Ctrl K</Kbd>
+            <Kbd>Ctrl K</Kbd>
           </button>
-
-          <span className="flex-1" />
+          <Button variant="ghost" size="icon" className="sm:hidden" aria-label="Search" onClick={() => setPaletteOpen(true)}>
+            <Search className="size-4" strokeWidth={1.75} />
+          </Button>
 
           <Button
             variant="ghost"
@@ -215,19 +117,60 @@ export default function AppShell({ route, navigate, onOpenTool, children }: AppS
             title={theme.name}
             onClick={() => select(theme.mode === "dark" ? "aurora" : "cool-dark")}
           >
-            {theme.mode === "dark" ? (
-              <Sun className="size-4" strokeWidth={1.75} />
-            ) : (
-              <Moon className="size-4" strokeWidth={1.75} />
-            )}
+            {theme.mode === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
           </Button>
-        </header>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            title="Settings"
+            aria-current={route.name === "settings" ? "page" : undefined}
+            className={route.name === "settings" ? "bg-accent-soft text-accent" : ""}
+            onClick={() => go({ name: "settings" })}
+          >
+            <Settings className="size-4" strokeWidth={1.75} />
+          </Button>
+          {authRequired && (
+            <Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={() => void signOut()}>
+              <LogOut className="size-4" strokeWidth={1.75} />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="md:hidden" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+            {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+          </Button>
+        </div>
 
-        <main className={cn("min-h-0 flex-1", fullBleed ? "overflow-hidden" : "overflow-y-auto")}>
-          {fullBleed && <h1 className="sr-only">{compact ? "Studio" : "Flows"}</h1>}
+        {menuOpen && (
+          <nav aria-label="Menu" className="pc-fade absolute inset-x-0 top-14 border-b border-line bg-panel p-2 shadow-lg md:hidden">
+            {LINKS.map((link) => (
+              <button
+                key={link.id}
+                type="button"
+                onClick={() => go(link.route)}
+                aria-current={current === link.id ? "page" : undefined}
+                className={cn(
+                  "flex h-10 w-full items-center gap-3 rounded-ctl px-3 text-left text-[0.9rem] font-medium",
+                  current === link.id ? "bg-accent-soft text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
+                )}
+              >
+                <link.icon className="size-4" strokeWidth={1.75} />
+                {link.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => go({ name: "settings" })} className="flex h-10 w-full items-center gap-3 rounded-ctl px-3 text-left text-[0.9rem] font-medium text-fg-muted hover:bg-hover hover:text-fg">
+              <Settings className="size-4" strokeWidth={1.75} />
+              Settings
+            </button>
+          </nav>
+        )}
+      </header>
+
+      <main id="main" tabIndex={-1} className={cn("min-h-0 flex-1 outline-none", fullBleed ? "overflow-hidden" : "overflow-y-auto")}>
+        {fullBleed && <h1 className="sr-only">{route.name === "studio" ? "Studio" : "Flows"}</h1>}
+        <div key={route.name === "studio" ? `studio:${route.file}` : route.name} className="pc-fade h-full">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} navigate={navigate} onOpenTool={onOpenTool} />
     </div>

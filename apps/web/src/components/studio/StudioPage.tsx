@@ -113,6 +113,33 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
     if (studio.error) toast.error(studio.error);
   }, [studio.error]);
 
+  // Ctrl+Z undoes and Ctrl+Y (or Ctrl+Shift+Z) redoes, unless a field is being typed in.
+  const { undo, redo, canUndo, canRedo, busy: studioBusy } = studio;
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || studioBusy) return;
+
+      const target = event.target as HTMLElement;
+
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === "z" && !event.shiftKey && canUndo) {
+        event.preventDefault();
+        undo();
+      } else if ((key === "y" || (key === "z" && event.shiftKey)) && canRedo) {
+        event.preventDefault();
+        redo();
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo, canUndo, canRedo, studioBusy]);
+
   const patchStage = useCallback((patch: Partial<Stage>) => setStage((existing) => ({ ...existing, ...patch })), []);
 
   const needsPage = (tool === "add" && (mode === "text" || mode === "image" || mode === "mark")) || (tool === "protect" && mode === "redact");

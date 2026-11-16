@@ -122,3 +122,21 @@ button {
   --xy-controls-button-border-color: var(--line);
   --xy-connectionline-stroke: var(--accent);
 }
+
+/* Small entrances: pages fade in, dialogs pop. Skipped for people who ask for less motion. */
+@keyframes pc-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pc-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.pc-fade { animation: pc-fade 160ms ease-out both; }
+.pc-pop { animation: pc-pop 180ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-fade, .pc-pop { animation: none; }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Maximize2, X } from "lucide-react";
 import { createContext, useContext } from "react";
 
 import { pageThumbnailUrl, type OperationSpec } from "@/lib/api";
@@ -9,6 +10,9 @@ import { cn } from "@/lib/utils";
 
 /** The operation catalogue, shared with every step on the canvas. */
 export const SpecsContext = createContext<Map<string, OperationSpec>>(new Map());
+
+/** What a step on the canvas can do to itself. */
+export const NodeActionsContext = createContext<{ open: (id: string) => void; remove: (id: string) => void }>({ open: () => undefined, remove: () => undefined });
 
 const STATUS_TEXT: Record<string, string> = {
   pending: "Waiting",
@@ -28,8 +32,9 @@ function title(node: StepNode["data"], specs: Map<string, OperationSpec>): strin
 }
 
 /** One step on the canvas: its name, its inputs on the left, its result on the right. */
-export default function StepNodeView({ data, selected }: NodeProps<StepNode>) {
+export default function StepNodeView({ id, data, selected }: NodeProps<StepNode>) {
   const specs = useContext(SpecsContext);
+  const actions = useContext(NodeActionsContext);
   const spec = specs.get(data.op);
   const inputs = spec?.inputs ?? [];
   const status = data.state?.status;
@@ -40,7 +45,7 @@ export default function StepNodeView({ data, selected }: NodeProps<StepNode>) {
   return (
     <div
       className={cn(
-        "w-52 rounded-box border bg-surface text-fg shadow-sm",
+        "group relative w-52 cursor-pointer rounded-box border bg-surface text-fg shadow-sm transition-shadow hover:shadow-md",
         selected ? "border-accent ring-2 ring-accent/30" : problem ? "border-danger" : "border-line-strong",
       )}
     >
@@ -60,6 +65,15 @@ export default function StepNodeView({ data, selected }: NodeProps<StepNode>) {
             />
           ))
         ))}
+
+      <div className="absolute -top-3 right-2 hidden gap-1 group-focus-within:flex group-hover:flex">
+        <button type="button" aria-label="Open this step" title="Open" onClick={(event) => { event.stopPropagation(); actions.open(id); }} className="nodrag flex size-6 items-center justify-center rounded-full border border-line-strong bg-surface text-fg-muted shadow-sm hover:text-accent">
+          <Maximize2 className="size-3" strokeWidth={2} />
+        </button>
+        <button type="button" aria-label="Remove this step" title="Remove" onClick={(event) => { event.stopPropagation(); actions.remove(id); }} className="nodrag flex size-6 items-center justify-center rounded-full border border-line-strong bg-surface text-fg-muted shadow-sm hover:text-danger">
+          <X className="size-3" strokeWidth={2} />
+        </button>
+      </div>
 
       <div className="flex items-start gap-2 px-3 pb-2 pt-2.5">
         <div className="min-w-0 flex-1">
