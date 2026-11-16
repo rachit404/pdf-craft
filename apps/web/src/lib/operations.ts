@@ -28,6 +28,11 @@ export const OPERATION_NAMES: Record<string, string> = {
   unlock: "Unlocked",
   redact: "Redacted",
   sanitize: "Cleaned",
+  "remove-blank-pages": "Blank pages removed",
+  "flatten-forms": "Form flattened",
+  "fill-form": "Form filled",
+  "edit-metadata": "Details changed",
+  "compress-to-target": "Made smaller to fit",
 };
 
 export function operationName(operation: string | null): string {
@@ -76,4 +81,6 @@ export const TOOL_TARGETS: Record<string, StudioTarget | "files"> = {
   unlock: { tool: "protect", mode: "unlock" },
   redact: { tool: "protect", mode: "redact" },
   sanitize: { tool: "clean" },
+  "remove-blank-pages": { tool: "pages" },
+  "fill-form": { tool: "add", mode: "form" },
 };

@@ -10,6 +10,7 @@ import shutil
 import time
 
 from app import storage
+from app.flows import cache as step_cache
 from app.flows import runs as flow_runs
 from app.services import history
 
@@ -52,6 +53,7 @@ def sweep(max_age_seconds: float) -> int:
 
     history.forget_missing(*remaining)
     flow_runs.prune(cutoff)
+    step_cache.prune(cutoff)
     return deleted
 
 

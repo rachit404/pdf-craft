@@ -21,10 +21,12 @@ import {
   applyOperation,
   extractText,
   getFileDownloadUrl,
+  getFormFields,
   getRegistry,
   runFlow,
   uploadFile,
   type ExtractedText,
+  type FormField,
   type RedactionRegion,
 } from "@/lib/api";
 import { formatSize } from "@/lib/format";
@@ -169,12 +171,7 @@ export function PagesPanel({ studio, selection, pageCount, order, onChanged, onO
     }
   }
 
-  async function split() {
-    const size = Math.max(1, Math.floor(Number(every)) || 1);
-    const ranges: number[][] = [];
-
-    for (let start = 1; start <= pageCount; start += size) ranges.push([start, Math.min(start + size - 1, pageCount)]);
-
+  async function splitWith(operation: string, params: Settings) {
     setSplitBusy(true);
 
     try {
@@ -182,7 +179,7 @@ export function PagesPanel({ studio, selection, pageCount, order, onChanged, onO
         {
           nodes: [
             { id: "in", op: "source" },
-            { id: "split", op: "split", params: { ranges } },
+            { id: "split", op: operation, params },
             { id: "out", op: "output" },
           ],
           edges: [
@@ -247,12 +244,44 @@ export function PagesPanel({ studio, selection, pageCount, order, onChanged, onO
             <span className="text-[0.85rem] text-fg-muted">Every</span>
             <Input className="w-16 font-mono" value={every} onChange={(event) => setEvery(event.target.value)} aria-label="Pages per file" />
             <span className="text-[0.85rem] text-fg-muted">pages</span>
-            <Button className="ml-auto" disabled={splitBusy || studio.busy} onClick={() => void split()}>
+            <Button
+              className="ml-auto"
+              disabled={splitBusy || studio.busy}
+              onClick={() => {
+                const size = Math.max(1, Math.floor(Number(every)) || 1);
+                const ranges: number[][] = [];
+
+                for (let start = 1; start <= pageCount; start += size) ranges.push([start, Math.min(start + size - 1, pageCount)]);
+
+                void splitWith("split", { ranges });
+              }}
+            >
               {splitBusy ? <Loader2 className="size-4 animate-spin" /> : <Scissors className="size-4" strokeWidth={1.75} />}
               Split
             </Button>
           </div>
         </Field>
+      </div>
+
+      <div className="space-y-2 border-t border-line pt-4">
+        <p className="text-[0.8rem] font-medium text-fg-muted">Scanned sheets</p>
+        <Button
+          className="w-full"
+          disabled={studio.busy}
+          onClick={async () => {
+            const result = await studio.apply("remove_blank_pages", {});
+
+            if (result) {
+              toast.success(`${String(result.pages_removed)} blank page${result.pages_removed === 1 ? "" : "s"} removed`);
+              onChanged();
+            }
+          }}
+        >
+          Remove blank pages
+        </Button>
+        <Button className="w-full" disabled={splitBusy || studio.busy} onClick={() => void splitWith("split_at_blanks", {})}>
+          Split into files at blank pages
+        </Button>
       </div>
 
       <p className="text-[0.78rem] text-fg-subtle">
@@ -265,6 +294,8 @@ export function PagesPanel({ studio, selection, pageCount, order, onChanged, onO
 // ---------------------------------------------------------
 // Add to pages
 // ---------------------------------------------------------
+
+const TOKEN_HELP = "Use {page}, {pages} and {date} to fill in the page number, page count and today's date.";
 
 const POSITIONS = [
   { value: "bottom-center", label: "Bottom centre" },
@@ -343,7 +374,7 @@ function TextForm({ studio, selection, pageNo, stage, patchStage, pageSize }: Pa
         ]}
       />
       <p className="text-[0.78rem] text-fg-subtle">
-        {stage.pick ? "Click the page to move the text." : "Click on the page to choose where the text goes."}
+        {stage.pick ? "Click the page to move the text." : "Click on the page to choose where the text goes."} {TOKEN_HELP}
       </p>
       <ApplyButton
         busy={studio.busy}
@@ -484,6 +515,88 @@ function ImageForm({ studio, selection, pageNo, stage, patchStage, pageSize }: P
   );
 }
 
+function FormForm({ studio }: { studio: Studio }) {
+  const [fields, setFields] = useState<FormField[] | null>(null);
+  const [initial, setInitial] = useState<Record<string, string | boolean>>({});
+  const [values, setValues] = useState<Record<string, string | boolean>>({});
+  const [flatten, setFlatten] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getFormFields(studio.current)
+      .then((list) => {
+        if (cancelled) return;
+
+        const start = Object.fromEntries(list.map((field) => [field.name, field.value]));
+
+        setFields(list);
+        setInitial(start);
+        setValues(start);
+      })
+      .catch(() => {
+        if (!cancelled) setFields([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [studio.current]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (fields === null) return <Loader2 className="size-4 animate-spin text-fg-subtle" />;
+
+  const changed = Object.fromEntries(Object.entries(values).filter(([name, value]) => value !== initial[name]));
+  const checked = (value: string | boolean) => value === true || ["true", "yes", "on", "1"].includes(String(value).toLowerCase());
+
+  return (
+    <div className="space-y-4">
+      {fields.length === 0 ? (
+        <p className="text-[0.85rem] text-fg-muted">This PDF has no form fields to fill.</p>
+      ) : (
+        <div className="space-y-3">
+          {fields.map((field) => (
+            <label key={field.name} className="block">
+              <span className="mb-1 block text-[0.8rem] font-medium text-fg-muted">
+                {field.name} <span className="font-normal text-fg-subtle">p.{field.page}</span>
+              </span>
+              {field.type === "CheckBox" || field.type === "RadioButton" ? (
+                <input type="checkbox" checked={checked(values[field.name])} onChange={(event) => setValues({ ...values, [field.name]: event.target.checked })} className="size-4 accent-[var(--accent)]" />
+              ) : field.choices.length > 0 ? (
+                <select value={String(values[field.name] ?? "")} onChange={(event) => setValues({ ...values, [field.name]: event.target.value })} className="h-8 w-full rounded-ctl border border-line-strong bg-surface px-2 text-[0.85rem]">
+                  <option value="" />
+                  {field.choices.map((choice) => (
+                    <option key={choice}>{choice}</option>
+                  ))}
+                </select>
+              ) : (
+                <Input value={String(values[field.name] ?? "")} onChange={(event) => setValues({ ...values, [field.name]: event.target.value })} />
+              )}
+            </label>
+          ))}
+        </div>
+      )}
+      <label className="flex cursor-pointer items-start gap-2.5">
+        <input type="checkbox" checked={flatten} onChange={(event) => setFlatten(event.target.checked)} className="mt-0.5 size-4 accent-[var(--accent)]" />
+        <span>
+          <span className="block text-[0.85rem] font-medium">Flatten when done</span>
+          <span className="block text-[0.75rem] text-fg-subtle">Turns the fields into plain page content, so they cannot be changed.</span>
+        </span>
+      </label>
+      <ApplyButton
+        busy={studio.busy}
+        disabled={!flatten && Object.keys(changed).length === 0}
+        onClick={async () => {
+          const result = await studio.apply("fill_form", { values: changed, flatten });
+
+          if (result) toast.success(flatten ? "Form filled and flattened" : "Form filled");
+        }}
+      >
+        {flatten ? "Fill and flatten" : "Fill form"}
+      </ApplyButton>
+    </div>
+  );
+}
+
 export function AddPanel(props: PanelProps) {
   const { studio, pageCount, mode, onMode } = props;
   const modes = [
@@ -494,6 +607,7 @@ export function AddPanel(props: PanelProps) {
     { id: "header", label: "Header" },
     { id: "background", label: "Colour" },
     { id: "crop", label: "Crop" },
+    { id: "form", label: "Form" },
   ];
 
   return (
@@ -514,15 +628,16 @@ export function AddPanel(props: PanelProps) {
         ))}
       </div>
 
-      {mode === "watermark" && <OperationForm key={mode} studio={studio} operation="watermark" label="Add watermark" pageCount={pageCount} success="Watermark added" />}
+      {mode === "watermark" && <OperationForm key={mode} studio={studio} operation="watermark" label="Add watermark" pageCount={pageCount} hints={{ text: { help: TOKEN_HELP } }} success="Watermark added" />}
       {mode === "numbers" && (
         <OperationForm key={mode} studio={studio} operation="page_numbers" label="Add page numbers" pageCount={pageCount} hints={{ position: { label: "Position", options: POSITIONS } }} success="Page numbers added" />
       )}
-      {mode === "header" && <OperationForm key={mode} studio={studio} operation="header_footer" label="Add header and footer" pageCount={pageCount} success="Header and footer added" />}
+      {mode === "header" && <OperationForm key={mode} studio={studio} operation="header_footer" label="Add header and footer" pageCount={pageCount} hints={{ header: { help: TOKEN_HELP }, footer: { help: TOKEN_HELP } }} success="Header and footer added" />}
       {mode === "background" && <BackgroundForm key={mode} studio={studio} />}
       {mode === "crop" && (
         <OperationForm key={mode} studio={studio} operation="crop" label="Crop pages" pageCount={pageCount} hints={{ left: { label: "Left (pt)" }, bottom: { label: "Bottom (pt)" }, right: { label: "Right (pt)" }, top: { label: "Top (pt)" } }} success="Pages cropped" />
       )}
+      {mode === "form" && <FormForm key={studio.current} studio={studio} />}
       {mode === "text" && <TextForm key={mode} {...props} />}
       {mode === "image" && <ImageForm key={mode} {...props} />}
     </div>
@@ -761,6 +876,7 @@ const LEVELS = [
 
 export function OptimizePanel({ studio }: PanelProps) {
   const [level, setLevel] = useState("balanced");
+  const [target, setTarget] = useState("5");
 
   return (
     <div className="space-y-4">
@@ -791,6 +907,72 @@ export function OptimizePanel({ studio }: PanelProps) {
         }}
       >
         Make smaller
+      </ApplyButton>
+
+      <div className="space-y-2 border-t border-line pt-4">
+        <Field label="Or aim for a size">
+          <div className="flex items-center gap-2">
+            <span className="text-[0.85rem] text-fg-muted">Under</span>
+            <Input className="w-20 font-mono" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target size in megabytes" />
+            <span className="text-[0.85rem] text-fg-muted">MB</span>
+            <Button
+              className="ml-auto"
+              disabled={studio.busy}
+              onClick={async () => {
+                const megabytes = Number(target);
+
+                if (!(megabytes > 0)) {
+                  toast.error("Enter a size above zero.");
+
+                  return;
+                }
+
+                const result = await studio.apply("compress_to_target", { target_mb: megabytes }, "Made smaller to fit");
+
+                if (result?.target_met) toast.success(`${formatSize(result.output_size_bytes)} (${String(result.level)})`);
+                else if (result) toast.warning(`Could not get under ${megabytes} MB. The smallest possible is ${formatSize(result.output_size_bytes)}.`);
+              }}
+            >
+              Shrink to fit
+            </Button>
+          </div>
+        </Field>
+        <p className="text-[0.75rem] text-fg-subtle">Tries the gentlest level first and stops at the first that fits.</p>
+      </div>
+    </div>
+  );
+}
+
+function DetailsEditor({ studio }: { studio: Studio }) {
+  const meta = studio.info?.metadata;
+  const [details, setDetails] = useState({
+    title: meta?.title ?? "",
+    author: meta?.author ?? "",
+    subject: meta?.subject ?? "",
+    keywords: meta?.keywords ?? "",
+  });
+  const labels: [keyof typeof details, string][] = [
+    ["title", "Title"],
+    ["author", "Author"],
+    ["subject", "Subject"],
+    ["keywords", "Keywords"],
+  ];
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-[0.8rem] font-semibold text-fg-muted">Change the details</h3>
+      {labels.map(([key, label]) => (
+        <Field key={key} label={label}>
+          <Input value={details[key]} maxLength={300} onChange={(event) => setDetails({ ...details, [key]: event.target.value })} />
+        </Field>
+      ))}
+      <ApplyButton
+        busy={studio.busy}
+        onClick={async () => {
+          if (await studio.apply("edit_metadata", details)) toast.success("Details saved");
+        }}
+      >
+        Save details
       </ApplyButton>
     </div>
   );
@@ -832,6 +1014,9 @@ export function CleanPanel({ studio, pageCount }: PanelProps) {
         }}
         success="Document cleaned"
       />
+      <div className="border-t border-line pt-4">
+        <DetailsEditor key={studio.current} studio={studio} />
+      </div>
     </div>
   );
 }

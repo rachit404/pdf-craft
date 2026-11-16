@@ -154,3 +154,16 @@ class SavedFlow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )
+
+
+class StepCache(Base):
+    """Results of a flow step, so running the same step on the same files again is instant."""
+
+    __tablename__ = "step_cache"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # JSON list of the names of the files the step made.
+    outputs: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )

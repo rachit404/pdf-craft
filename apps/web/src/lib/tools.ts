@@ -25,6 +25,8 @@ import {
   Unlock,
   EyeOff,
   ShieldCheck,
+  FileX,
+  TextCursorInput,
   type LucideIcon,
 } from "lucide-react";
 
@@ -304,6 +306,24 @@ export const tools: PDFTool[] = [
     category: "Protect",
     icon: ShieldCheck,
     color: "pink",
+    available: true,
+  },
+  {
+    id: "remove-blank-pages",
+    name: "Remove blank pages",
+    description: "Drop empty pages, such as the backs of scanned sheets.",
+    category: "Organize",
+    icon: FileX,
+    color: "blue",
+    available: true,
+  },
+  {
+    id: "fill-form",
+    name: "Fill and flatten form",
+    description: "Fill in form fields and lock them into the page.",
+    category: "Edit",
+    icon: TextCursorInput,
+    color: "violet",
     available: true,
   },
 ];

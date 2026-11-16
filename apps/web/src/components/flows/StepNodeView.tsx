@@ -96,7 +96,7 @@ export default function StepNodeView({ data, selected }: NodeProps<StepNode>) {
           )}
           <span className="font-mono text-[0.72rem] text-fg-muted">
             {count} file{count === 1 ? "" : "s"}
-            {data.state?.duration !== undefined && ` · ${data.state.duration}s`}
+            {data.state?.cached ? " · cached" : data.state?.duration !== undefined && ` · ${data.state.duration}s`}
           </span>
         </div>
       )}

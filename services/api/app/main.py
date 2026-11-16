@@ -14,6 +14,7 @@ from app.api.routers.uploads import router as uploads_router
 from app.api.routers.operations import router as operations_router
 from app.api.routers.conversions import router as conversions_router
 from app.api.routers.security import router as security_router
+from app.api.routers.tools import router as tools_router
 from app import auth
 from app.db.init_db import create_schema
 from app.flows import runs as flow_runs
@@ -61,5 +62,6 @@ for router in (
     operations_router,
     conversions_router,
     security_router,
+    tools_router,
 ):
     app.include_router(router, dependencies=[Depends(auth.require_auth)])

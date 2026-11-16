@@ -137,6 +137,8 @@ Edit `/etc/pdf-craft/pdf-craft.env`, then restart the services.
 | Setting | Default | Meaning |
 |---|---|---|
 | `PDF_CRAFT_RETENTION_HOURS` | 24 | Uploads and results are deleted automatically after this many hours. `0` keeps them until you delete them in *Recent files* |
+| `PDF_CRAFT_FLOW_CACHE` | 1 | A flow step that runs again on identical files and settings reuses its earlier result (shown as *cached*). `0` turns this off |
+| `PDF_CRAFT_FLOW_MAX_ITEMS` / `PDF_CRAFT_FLOW_TIMEOUT` | 50 / 600 | Most files one flow step may handle, and seconds a whole run may take |
 | `PDF_CRAFT_MAX_UPLOAD_MB` / `PDF_CRAFT_MAX_IMAGE_MB` | 25 / 10 | Largest PDF or Office file, and largest image. If you raise the first above 38, raise `max_size` in `/etc/caddy/Caddyfile` too |
 | `PDF_CRAFT_OFFICE_WORKERS` / `PDF_CRAFT_OFFICE_TIMEOUT` | 2 / 120 | LibreOffice conversions at once, and seconds before one is stopped |
 | `PDF_CRAFT_SESSION_HOURS` | 168 | How long a sign-in lasts |

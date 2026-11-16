@@ -228,6 +228,11 @@ const OPERATION_ROUTES: Record<string, (file: string) => string> = {
   unlock: (f) => `/security/${f}/unlock`,
   redact: (f) => `/security/${f}/redact`,
   sanitize: (f) => `/security/${f}/sanitize`,
+  remove_blank_pages: (f) => `/tools/${f}/remove-blank-pages`,
+  flatten_forms: (f) => `/tools/${f}/flatten-forms`,
+  fill_form: (f) => `/tools/${f}/fill-form`,
+  edit_metadata: (f) => `/tools/${f}/edit-metadata`,
+  compress_to_target: (f) => `/tools/${f}/compress-to-target`,
   to_images: (f) => `/conversions/${f}/to-images`,
   to_docx: (f) => `/conversions/${f}/to-docx`,
   to_xlsx: (f) => `/conversions/${f}/to-xlsx`,
@@ -377,6 +382,8 @@ export interface NodeState {
   status: "pending" | "running" | "done" | "error" | "skipped" | "cancelled";
   duration?: number;
   items?: string[];
+  /** The files of an earlier identical run were reused. */
+  cached?: boolean;
   error?: string;
 }
 
@@ -449,4 +456,44 @@ export async function saveFlow(
 
 export async function deleteSavedFlow(id: string): Promise<void> {
   await handleResponse(await fetch(`${API_BASE}/flows/saved/${id}`, { method: "DELETE" }));
+}
+
+// ---------------------------------------------------------
+// Forms and search
+// ---------------------------------------------------------
+
+export interface FormField {
+  name: string;
+  type: string;
+  value: string | boolean;
+  page: number;
+  choices: string[];
+}
+
+export async function getFormFields(name: string): Promise<FormField[]> {
+  return handleResponse<FormField[]>(
+    await fetch(`${API_BASE}/tools/${encodeURIComponent(name)}/form-fields`),
+  );
+}
+
+export interface SearchHit {
+  name: string;
+  original_name: string;
+  page: number;
+  snippet: string;
+}
+
+export interface SearchResult {
+  query: string;
+  files_searched: number;
+  /** False when the search stopped early (many files or too slow). */
+  complete: boolean;
+  hits: SearchHit[];
+}
+
+/** Find a word or phrase inside the stored PDFs. */
+export async function searchFiles(query: string): Promise<SearchResult> {
+  return handleResponse<SearchResult>(
+    await fetch(`${API_BASE}/files/search?q=${encodeURIComponent(query)}`),
+  );
 }

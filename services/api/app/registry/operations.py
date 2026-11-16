@@ -26,8 +26,9 @@ from app.schemas.security import (
     SanitizePDFRequest,
     UnlockPDFRequest,
 )
+from app.schemas.tools import BlankPagesRequest, FillFormRequest, MetadataRequest, TargetSizeRequest
 from app.schemas.uploads import CompressRequest
-from app.services import conversion_service, pdf_service, security_service
+from app.services import conversion_service, pdf_service, power_service, security_service
 
 MAX_UNZIPPED_FILES = 200
 
@@ -188,6 +189,21 @@ _pdf_operation("protect", "Password", "Protect", "Lock the file with a password 
 _pdf_operation("unlock", "Unlock", "Protect", "Remove password protection.", UnlockPDFRequest, lambda f, p: _security_result(security_service.unlock_document(f, p.password)))
 _pdf_operation("redact", "Redact", "Protect", "Permanently remove areas or words.", RedactPDFRequest, lambda f, p: _security_result(security_service.redact_document(f, [r.model_dump() for r in p.regions], p.terms)))
 _pdf_operation("sanitize", "Clean", "Protect", "Remove metadata, scripts and hidden data.", SanitizePDFRequest, lambda f, p: _security_result(security_service.sanitize_document(f, **p.model_dump())))
+
+# ---------------------------------------------------------
+# Power tools
+# ---------------------------------------------------------
+
+def _split_at_blanks(path: Path, settings: BlankPagesRequest) -> list[Path]:
+    return _split(path, SplitRequest(ranges=power_service.blank_page_ranges(path, settings.ink_percent)))
+
+
+_pdf_operation("remove_blank_pages", "Remove blank pages", "Clean", "Drop pages with nothing on them, such as the backs of scanned sheets.", BlankPagesRequest, lambda f, p: _pdf_result(power_service.remove_blank_pages(f, p.ink_percent)))
+_pdf_operation("split_at_blanks", "Split at blank pages", "Pages", "Cut a stack of scanned documents apart wherever a blank page separates them.", BlankPagesRequest, _split_at_blanks, many_outputs=True)
+_pdf_operation("flatten_forms", "Flatten forms", "Forms", "Turn form fields into plain page content so they can no longer be changed.", NoSettings, lambda f, p: _pdf_result(power_service.flatten_forms(f)))
+_pdf_operation("fill_form", "Fill form", "Forms", "Fill in form fields by name, and optionally flatten them.", FillFormRequest, lambda f, p: _pdf_result(power_service.fill_form(f, p.values, p.flatten)))
+_pdf_operation("edit_metadata", "Document details", "Clean", "Set the title, author, subject and keywords.", MetadataRequest, lambda f, p: _pdf_result(power_service.edit_metadata(f, p.model_dump())))
+_pdf_operation("compress_to_target", "Make smaller than a size", "Optimize", "Try gentler levels first and stop at the first that fits the size.", TargetSizeRequest, lambda f, p: _pdf_result(power_service.compress_to_target(f, p.target_mb)))
 
 # ---------------------------------------------------------
 # Convert

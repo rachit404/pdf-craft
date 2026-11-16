@@ -1,6 +1,6 @@
 "use client";
 
-import { Combine, Download, FileImage, Loader2, Trash2, Upload } from "lucide-react";
+import { Combine, Download, FileImage, Loader2, Search, Trash2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,7 +15,9 @@ import {
   listFiles,
   mergeFiles,
   runFlow,
+  searchFiles,
   uploadFile,
+  type SearchResult,
   type StoredFileInfo,
 } from "@/lib/api";
 import { formatSize, timeAgo, timeLeft } from "@/lib/format";
@@ -76,6 +78,23 @@ export default function FilesPage({ navigate }: FilesPageProps) {
   const [checked, setChecked] = useState<string[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<SearchResult | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  async function search() {
+    if (query.trim().length < 2) return;
+
+    setSearching(true);
+
+    try {
+      setFound(await searchFiles(query.trim()));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "The search did not work.");
+    } finally {
+      setSearching(false);
+    }
+  }
 
   const refresh = useCallback(async () => {
     setFiles(await listFiles());
@@ -214,6 +233,56 @@ export default function FilesPage({ navigate }: FilesPageProps) {
           Choose files
         </Button>
       </div>
+
+      <form
+        className="mb-4 flex items-center gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void search();
+        }}
+      >
+        <div className="relative max-w-md flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-fg-subtle" strokeWidth={1.75} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search inside your PDFs"
+            aria-label="Search inside your PDFs"
+            maxLength={100}
+            className="h-8 w-full rounded-ctl border border-line-strong bg-surface pl-8 pr-2.5 text-[0.85rem] placeholder:text-fg-subtle"
+          />
+        </div>
+        <Button type="submit" disabled={searching || query.trim().length < 2}>
+          {searching && <Loader2 className="size-4 animate-spin" />} Search
+        </Button>
+      </form>
+
+      {found && (
+        <div className="mb-4 rounded-box border border-line bg-surface">
+          <div className="flex items-center justify-between border-b border-line px-4 py-2 text-[0.82rem]">
+            <span className="font-medium">
+              {found.hits.length === 0 ? "Nothing found" : `${found.hits.length} match${found.hits.length === 1 ? "" : "es"}`} for &ldquo;{found.query}&rdquo;
+              <span className="ml-2 font-normal text-fg-subtle">
+                {found.files_searched} PDF{found.files_searched === 1 ? "" : "s"} searched{found.complete ? "" : ", stopped early"}
+              </span>
+            </span>
+            <button type="button" aria-label="Close results" onClick={() => setFound(null)} className="text-fg-subtle hover:text-fg">
+              <X className="size-4" />
+            </button>
+          </div>
+          <ul className="max-h-60 overflow-y-auto">
+            {found.hits.map((hit, index) => (
+              <li key={`${hit.name}-${hit.page}-${index}`}>
+                <button type="button" onClick={() => navigate({ name: "studio", file: hit.name })} className="block w-full border-b border-line px-4 py-2 text-left last:border-b-0 hover:bg-hover">
+                  <span className="text-[0.85rem] font-medium">{hit.original_name}</span>
+                  <span className="ml-2 font-mono text-[0.72rem] text-fg-subtle">page {hit.page}</span>
+                  <span className="block truncate text-[0.8rem] text-fg-muted">{hit.snippet}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="mb-3 text-[0.82rem] text-fg-muted">{retentionText(retention)} Nothing here is shared or sent anywhere.</p>
 

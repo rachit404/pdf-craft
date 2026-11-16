@@ -47,6 +47,32 @@ def pdf_bytes(*texts: str) -> bytes:
         return document.tobytes()
 
 
+def pdf_with_blanks() -> bytes:
+    """text, blank, text, blank, blank, text"""
+    with pymupdf.open() as document:
+        for text in ("first", None, "second", None, None, "third"):
+            page = document.new_page(width=300, height=400)
+
+            if text:
+                page.insert_text((40, 80), text, fontsize=24)
+
+        return document.tobytes()
+
+
+def form_pdf_bytes() -> bytes:
+    with pymupdf.open() as document:
+        page = document.new_page(width=300, height=400)
+
+        for index, name in enumerate(("full_name", "city")):
+            widget = pymupdf.Widget()
+            widget.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
+            widget.field_name = name
+            widget.rect = pymupdf.Rect(40, 40 + index * 40, 240, 62 + index * 40)
+            page.add_widget(widget)
+
+        return document.tobytes()
+
+
 def png_bytes() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (60, 30), (200, 40, 40)).save(buffer, format="PNG")
@@ -274,7 +300,7 @@ def test_registry_lists_every_operation_with_a_schema(client):
     operations = client.get("/registry/operations").json()
     ids = [operation["id"] for operation in operations]
 
-    assert len(ids) == len(set(ids)) == 26
+    assert len(ids) == len(set(ids)) == 32
     assert {"merge", "split", "rotate", "watermark", "compress", "protect", "redact", "to_docx", "images_to_pdf"} <= set(ids)
 
     for operation in operations:
@@ -292,6 +318,8 @@ def samples(pdf_storage):
     up = pdf_storage[0]
     (up / "three.pdf").write_bytes(pdf_bytes("one", "two", "three"))
     (up / "two.pdf").write_bytes(pdf_bytes("alpha", "beta"))
+    (up / "blanks.pdf").write_bytes(pdf_with_blanks())
+    (up / "form.pdf").write_bytes(form_pdf_bytes())
     (up / "logo.png").write_bytes(png_bytes())
     (up / "a.docx").write_bytes(docx_bytes())
     (up / "a.pptx").write_bytes(pptx_bytes())
@@ -323,6 +351,12 @@ REGISTRY_CASES = {
     "to_xlsx": ({"pdf": ["two.pdf"]}, {}, ["xlsx"], None),
     "to_pptx": ({"pdf": ["two.pdf"]}, {"dpi": 50}, ["pptx"], None),
     "images_to_pdf": ({"image": ["logo.png", "logo.png"]}, {}, ["pdf"], 2),
+    "remove_blank_pages": ({"pdf": ["blanks.pdf"]}, {}, ["pdf"], 3),
+    "split_at_blanks": ({"pdf": ["blanks.pdf"]}, {}, ["pdf", "pdf", "pdf"], None),
+    "flatten_forms": ({"pdf": ["form.pdf"]}, {}, ["pdf"], 1),
+    "fill_form": ({"pdf": ["form.pdf"]}, {"values": {"city": "Pune"}, "flatten": True}, ["pdf"], 1),
+    "edit_metadata": ({"pdf": ["two.pdf"]}, {"title": "Hello"}, ["pdf"], 2),
+    "compress_to_target": ({"pdf": ["two.pdf"]}, {"target_mb": 5}, ["pdf"], 2),
     "docx_to_pdf": ({"docx": ["a.docx"]}, {}, ["pdf"], 1),
     "pptx_to_pdf": ({"pptx": ["a.pptx"]}, {}, ["pdf"], None),
 }
@@ -343,7 +377,7 @@ def test_each_operation_runs_and_produces_its_declared_files(samples, pdf_storag
     assert [p.suffix.lstrip(".") for p in produced] == suffixes
     assert all(p.is_file() and p.stat().st_size > 0 for p in produced)
     assert all(p.parent == pdf_storage[1] for p in produced)  # stored with the results
-    assert operation.many_outputs == (len(produced) > 1 or operation_id in ("split", "to_images"))
+    assert operation.many_outputs == (len(produced) > 1 or operation_id in ("split", "to_images", "split_at_blanks"))
 
     if pages is not None:
         assert len(pymupdf.open(produced[0])) == pages

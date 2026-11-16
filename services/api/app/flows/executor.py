@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app import registry
+from app.flows import cache
 from app.flows.definition import (
     OUTPUT,
     SOURCE,
@@ -113,6 +114,7 @@ def run_flow(
             publish()
             continue
 
+        reused: list[Path] | None = None
         started = time.monotonic()
         states[node_id] = _state("running")
         publish()
@@ -133,7 +135,17 @@ def run_flow(
                 for edge in incoming_edges:
                     by_port[port_for(edge, operation)].extend(items[edge.source])
 
-                made = _run_operation(operation, settings, by_port, deadline, cancelled)
+                step_key = cache.key_for(
+                    operation.id,
+                    settings.model_dump_json(),
+                    {name: [item.path for item in port_items] for name, port_items in by_port.items()},
+                )
+                reused = cache.lookup(step_key) if step_key else None
+                made = reused if reused is not None else _run_operation(operation, settings, by_port, deadline, cancelled)
+
+                if reused is None and step_key and not cancelled():
+                    cache.store(step_key, made)
+
                 produced += len(made)
 
                 if produced > MAX_TOTAL_FILES:
@@ -142,7 +154,7 @@ def run_flow(
                 main = [item.name for item in by_port[operation.inputs[0].name]]
                 names = [path.name for path in made]
 
-                for name in names:
+                for name in [] if reused is not None else names:
                     file_store.register(
                         name,
                         kind=operation.output,
@@ -162,6 +174,7 @@ def run_flow(
                 "done",
                 duration=round(time.monotonic() - started, 3),
                 items=[item.name for item in items[node_id]],
+                **({"cached": True} if reused is not None else {}),
             )
         except (ValueError, FileNotFoundError) as error:
             fail(node_id, str(error) or "This step failed.")

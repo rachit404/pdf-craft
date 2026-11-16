@@ -208,10 +208,16 @@ Done when: the whole V1 set works without re-uploading and the user can say wher
   small-screen layout (the page needs about 1000 px of width).
 Done when: a 6-node template runs end to end with per-node status and previews.
 
-### Part 10 - Power tools wave 1 + hardening  [after 9]
-Sign and stamp, fill and flatten forms, smart split, compare PDFs, clean scans (blank pages, deskew, grayscale), library
-search (FTS5), tokens in headers/names. Each is a registry entry plus a small panel, so it works in Flows automatically.
-Hardening: step cache, run limits tuning, accessibility pass, performance budget, installer update for new env settings.
+### Part 10 - Power tools wave 1 + hardening  [first slice built, awaiting verification]
+- New registry tools (so they work in Studio and Flows): Remove blank pages, Split at blank pages, Flatten forms, Fill form,
+  Document details (title/author/subject/keywords), Make smaller than a size. REST under `/tools/{file}/...`, engine
+  `engines/pdf/power.py`. Studio: Pages panel (blank pages), Add > Form, Smaller (size target), Clean (details editor).
+- Text tokens `{page}`, `{pages}`, `{date}` in watermark, header/footer and added text.
+- Library search: `GET /files/search?q=` scans the newest 100 PDFs (page + snippet, 8 s budget); search box on Files.
+- Flow step cache (`flows/cache.py`, table `step_cache`, `PDF_CRAFT_FLOW_CACHE=0` to disable): an identical step on identical
+  files reuses its result and shows "cached"; steps using `{date}` are never cached.
+- Not yet: sign and stamp, annotate, compare PDFs, deskew and grayscale, FTS5 index (search is a live scan), batch runs,
+  "Save as flow" from Studio, accessibility pass, performance budget.
 
 ### Later (not scheduled)
 V2 local OCR and AI (section 7), then the commercial track (section 8). Revisit after Part 10.

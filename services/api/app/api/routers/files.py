@@ -14,7 +14,7 @@ from app.api.routers.conversions import MAIN_PARTS, _check_office_archive
 from app.api.routers.outputs import _download_name
 from app.config import MAX_IMAGE_BYTES, MAX_UPLOAD_BYTES
 from app.schemas.files import StoredFileResponse
-from app.services import file_store
+from app.services import file_store, search_service
 
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -128,6 +128,15 @@ def list_files(
         _response(record)
         for record in file_store.list_files(OWNER, kind, include_intermediate, limit)
     ]
+
+
+@router.get("/search")
+def search_files(q: str = Query(min_length=2, max_length=100)) -> dict:
+    """Find a word or phrase inside stored PDFs."""
+    try:
+        return search_service.search(OWNER, q)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @router.get("/{file_name}", response_model=StoredFileResponse)

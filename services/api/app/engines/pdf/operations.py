@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from datetime import date
 import zipfile
 
 from io import BytesIO
@@ -318,12 +319,24 @@ def _merge_overlay(page, draw_callback, over: bool = True) -> None:
     )
 
 
+def expand_tokens(text: str, page: int, pages: int) -> str:
+    """Fill {page}, {pages} and {date} in text that is stamped on pages."""
+    return (
+        text.replace("{pages}", str(pages))
+        .replace("{page}", str(page))
+        .replace("{date}", date.today().isoformat())
+    )
+
+
 def _apply_overlay(
     path: Path,
     output: Path,
     draw_callback,
     pages: list[int] | None = None,
+    per_page: bool = False,
 ) -> dict:
+    """Draw on the chosen pages. With `per_page`, `draw_callback(number, total)`
+    returns the drawing for that page (used for text with tokens)."""
     reader = _reader(path)
     targets = (
         set(_page_numbers(pages, len(reader.pages)))
@@ -337,7 +350,8 @@ def _apply_overlay(
         writer.add_page(page)
 
         if number in targets:
-            _merge_overlay(writer.pages[-1], draw_callback)
+            draw = draw_callback(number, len(reader.pages)) if per_page else draw_callback
+            _merge_overlay(writer.pages[-1], draw)
 
     return _save(writer, output)
 
@@ -384,21 +398,28 @@ def watermark_pdf(
             "Invalid watermark opacity or font size."
         )
 
-    def draw(pdf, width, height):
-        pdf.saveState()
+    _latin_text(text)
 
-        # Set the color first, then apply transparency.
-        pdf.setFillColor(Color(0.4, 0.4, 0.4))
-        pdf.setFillAlpha(opacity)
+    def factory(number, total):
+        label = expand_tokens(text, number, total)[:150]
 
-        pdf.setFont("Helvetica-Bold", font_size)
-        pdf.translate(width / 2, height / 2)
-        pdf.rotate(45)
-        pdf.drawCentredString(0, 0, text[:150])
+        def draw(pdf, width, height):
+            pdf.saveState()
 
-        pdf.restoreState()
+            # Set the color first, then apply transparency.
+            pdf.setFillColor(Color(0.4, 0.4, 0.4))
+            pdf.setFillAlpha(opacity)
 
-    return _apply_overlay(path, output, draw)
+            pdf.setFont("Helvetica-Bold", font_size)
+            pdf.translate(width / 2, height / 2)
+            pdf.rotate(45)
+            pdf.drawCentredString(0, 0, label)
+
+            pdf.restoreState()
+
+        return draw
+
+    return _apply_overlay(path, output, factory, per_page=True)
 
 
 # ---------------------------------------------------------
@@ -462,24 +483,19 @@ def add_header_footer(
 
     _latin_text(f"{header or ''}{footer or ''}")
 
-    def draw(pdf, width, height):
-        pdf.setFont("Helvetica", 9)
+    def factory(number, total):
+        def draw(pdf, width, height):
+            pdf.setFont("Helvetica", 9)
 
-        if header:
-            pdf.drawCentredString(
-                width / 2,
-                height - 20,
-                header[:200],
-            )
+            if header:
+                pdf.drawCentredString(width / 2, height - 20, expand_tokens(header, number, total)[:200])
 
-        if footer:
-            pdf.drawCentredString(
-                width / 2,
-                15,
-                footer[:200],
-            )
+            if footer:
+                pdf.drawCentredString(width / 2, 15, expand_tokens(footer, number, total)[:200])
 
-    return _apply_overlay(path, output, draw)
+        return draw
+
+    return _apply_overlay(path, output, factory, per_page=True)
 
 
 # ---------------------------------------------------------
@@ -600,21 +616,25 @@ def add_text(
 
     _latin_text(text)
     fill = _hex_color(color)
-    lines = text.splitlines()
 
-    def draw(pdf, width, height):
-        if not 0 <= x <= width or not 0 <= y <= height:
-            raise ValueError(
-                "Text position is outside the page."
-            )
+    def factory(number, total):
+        shown = expand_tokens(text, number, total).splitlines()
 
-        pdf.setFillColor(fill)
-        pdf.setFont("Helvetica", font_size)
+        def draw(pdf, width, height):
+            if not 0 <= x <= width or not 0 <= y <= height:
+                raise ValueError(
+                    "Text position is outside the page."
+                )
 
-        for index, line in enumerate(lines):
-            pdf.drawString(x, y - index * font_size * 1.2, line)
+            pdf.setFillColor(fill)
+            pdf.setFont("Helvetica", font_size)
 
-    return _apply_overlay(path, output, draw, pages)
+            for index, line in enumerate(shown):
+                pdf.drawString(x, y - index * font_size * 1.2, line)
+
+        return draw
+
+    return _apply_overlay(path, output, factory, pages, per_page=True)
 
 
 # ---------------------------------------------------------
