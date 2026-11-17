@@ -458,7 +458,11 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
         {/* Options */}
         <aside className="w-72 shrink-0 overflow-y-auto border-l border-line bg-panel p-4 lg:w-80" aria-label="Options">
           <h2 className="mb-3 text-[0.95rem] font-semibold">{TOOLS.find((item) => item.id === tool)?.label}</h2>
-          {studio.loading || !pageCount ? null : <Panel {...panelProps} />}
+          {studio.loading || !pageCount ? null : (
+            <div key={`${tool}:${mode}`} className="pc-fade">
+              <Panel {...panelProps} />
+            </div>
+          )}
         </aside>
       </div>
 

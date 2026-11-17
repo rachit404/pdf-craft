@@ -304,6 +304,14 @@ export function parseStored(raw: string | null): StoredTheme {
 
 /** Paint a theme onto the page. Safe to call repeatedly. */
 export function applyTheme(theme: Theme, root: HTMLElement = document.documentElement): void {
+  // A change after the page is up fades; the first paint (set by the head script) does not.
+  const changing = root.dataset.theme !== undefined && root.dataset.theme !== theme.id;
+
+  if (changing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    root.classList.add("pc-theme-fade");
+    window.setTimeout(() => root.classList.remove("pc-theme-fade"), 420);
+  }
+
   for (const [name, value] of Object.entries(theme.vars)) {
     root.style.setProperty(`--${name}`, value);
   }

@@ -56,8 +56,8 @@ export default function CommandPalette({
       open={open}
       onOpenChange={onOpenChange}
       label="Command palette"
-      overlayClassName="fixed inset-0 z-50 bg-black/40"
-      contentClassName="fixed left-1/2 top-[16vh] z-50 w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-box border border-line-strong bg-surface text-fg shadow-xl"
+      overlayClassName="pc-fade fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
+      contentClassName="pc-drop fixed left-1/2 top-[16vh] z-50 w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-box border border-line-strong bg-surface text-fg shadow-xl"
     >
       <div className="flex items-center border-b border-line px-3">
         <Command.Input

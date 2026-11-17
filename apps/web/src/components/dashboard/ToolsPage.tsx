@@ -1,10 +1,10 @@
 "use client";
 
-import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Input, Kbd, Segmented } from "@/components/ui/controls";
-import { usePersistedFlag } from "@/lib/usePersistedFlag";
+import { SidebarPortal, useSidebar } from "@/components/layout/SidebarSlot";
 import { categories, tools, type ToolCategory } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ interface ToolsPageProps {
 export default function ToolsPage({ category, onCategoryChange, onOpenTool }: ToolsPageProps) {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  const [sidebarOpen, setSidebarOpen] = usePersistedFlag("pdfcraft.sidebar.tools");
+  const { expanded } = useSidebar();
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -55,42 +55,29 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
   const counts = new Map<string, number>(categories.map((item) => [item, item === "All tools" ? tools.length : tools.filter((tool) => tool.category === item).length]));
 
   return (
-    <div className="flex min-h-full">
-      {sidebarOpen && (
-        <aside aria-label="Browse tools" className="pc-fade sticky top-0 hidden h-[calc(100vh-3.5rem)] w-56 shrink-0 flex-col border-r border-line bg-panel lg:flex">
-          <div className="flex items-center justify-between px-4 pb-2 pt-4">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-fg-subtle">Browse</p>
-            <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Hide the sidebar" title="Hide the sidebar" className="rounded-ctl p-1 text-fg-muted hover:bg-hover hover:text-fg">
-              <PanelLeftClose className="size-4" strokeWidth={1.75} />
+    <div className="min-h-full">
+      <SidebarPortal title="Browse tools">
+        <nav className="space-y-0.5" aria-label="Tool categories">
+          {categories.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onCategoryChange(item)}
+              aria-current={category === item ? "page" : undefined}
+              className={cn(
+                "flex h-9 w-full items-center gap-2 rounded-ctl px-2.5 text-left text-[0.86rem] font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.98]",
+                category === item ? "bg-accent-soft font-semibold text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
+              )}
+            >
+              <span className="flex-1 truncate">{item}</span>
+              <span className="font-mono text-[0.72rem] text-fg-subtle">{counts.get(item)}</span>
             </button>
-          </div>
-          <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4" aria-label="Tool categories">
-            {categories.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => onCategoryChange(item)}
-                aria-current={category === item ? "page" : undefined}
-                className={cn(
-                  "flex h-9 w-full items-center gap-2 rounded-ctl px-2.5 text-left text-[0.86rem] font-medium transition-colors",
-                  category === item ? "bg-accent-soft font-semibold text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
-                )}
-              >
-                <span className="flex-1 truncate">{item}</span>
-                <span className="font-mono text-[0.72rem] text-fg-subtle">{counts.get(item)}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
-      )}
+          ))}
+        </nav>
+      </SidebarPortal>
 
       <div className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-5 py-6 sm:px-8">
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        {!sidebarOpen && (
-          <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Show the sidebar" title="Show the sidebar" className="hidden rounded-ctl border border-line-strong bg-surface p-1.5 text-fg-muted hover:bg-hover hover:text-fg lg:inline-flex">
-            <PanelLeftOpen className="size-4" strokeWidth={1.75} />
-          </button>
-        )}
         <h1 className="mr-auto text-lg font-semibold tracking-tight">
           Tools <span className="ml-1 font-mono text-[0.8rem] font-normal text-fg-subtle">{visible.length}</span>
         </h1>
@@ -108,7 +95,7 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
           <Kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</Kbd>
         </div>
 
-        <div className={cn("w-full sm:w-auto", sidebarOpen && "lg:hidden")}>
+        <div className={cn("w-full sm:w-auto", expanded && "md:hidden")}>
           <Segmented
             label="Category"
             value={category}
@@ -133,12 +120,12 @@ export default function ToolsPage({ category, onCategoryChange, onOpenTool }: To
               </h2>
 
               <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {group.items.map((tool) => (
-                  <li key={tool.id}>
+                {group.items.map((tool, position) => (
+                  <li key={tool.id} className="pc-rise" style={{ animationDelay: `${Math.min(position, 11) * 30}ms` }}>
                     <button
                       type="button"
                       onClick={() => onOpenTool(tool.id)}
-                      className="group flex h-full w-full items-start gap-3 rounded-box border border-line bg-surface p-3.5 text-left shadow-sm transition hover:-translate-y-px hover:border-accent/60 hover:shadow-md"
+                      className="group flex h-full w-full items-start gap-3 rounded-box border border-line bg-surface p-3.5 text-left shadow-sm transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-md active:translate-y-0 active:scale-[0.99]"
                     >
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-ctl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-on-accent">
                         <tool.icon className="size-[1.1rem]" strokeWidth={1.75} />

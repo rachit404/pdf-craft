@@ -45,7 +45,7 @@ export default function StepNodeView({ id, data, selected }: NodeProps<StepNode>
   return (
     <div
       className={cn(
-        "group relative w-52 cursor-pointer rounded-box border bg-surface text-fg shadow-sm transition-shadow hover:shadow-md",
+        "group pc-pop relative w-52 cursor-pointer rounded-box border bg-surface text-fg shadow-sm transition-[box-shadow,border-color] duration-200 hover:shadow-md",
         selected ? "border-accent ring-2 ring-accent/30" : problem ? "border-danger" : "border-line-strong",
       )}
     >
@@ -106,7 +106,7 @@ export default function StepNodeView({ id, data, selected }: NodeProps<StepNode>
         <div className="flex items-center gap-2 border-t border-line px-3 py-1.5">
           {first?.endsWith(".pdf") && (
             // eslint-disable-next-line @next/next/no-img-element -- server-rendered thumbnail
-            <img src={pageThumbnailUrl(first, 1, 120)} alt="" className="h-10 w-8 rounded-[2px] bg-page object-contain shadow-[0_0_0_1px_var(--line-strong)]" />
+            <img src={pageThumbnailUrl(first, 1, 120)} alt="" className="pc-img h-10 w-8 rounded-[2px] bg-page object-contain shadow-[0_0_0_1px_var(--line-strong)]" onLoad={(event) => event.currentTarget.setAttribute("data-ready", "")} onError={(event) => event.currentTarget.setAttribute("data-ready", "")} />
           )}
           <span className="font-mono text-[0.72rem] text-fg-muted">
             {count} file{count === 1 ? "" : "s"}

@@ -371,7 +371,7 @@ export default function FilesPage({ navigate }: FilesPageProps) {
               return (
                 <li
                   key={file.name}
-                  className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-hover/50 md:grid-cols-[1.5rem_minmax(0,1fr)_5.5rem_5rem_6.5rem_6rem_5rem]"
+                  className="pc-fade grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-hover/50 md:grid-cols-[1.5rem_minmax(0,1fr)_5.5rem_5rem_6.5rem_6rem_5rem]"
                 >
                   <input
                     type="checkbox"

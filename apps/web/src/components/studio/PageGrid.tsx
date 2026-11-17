@@ -79,7 +79,9 @@ function Thumb({
           alt=""
           loading="lazy"
           draggable={false}
-          className="h-full w-full select-none object-contain"
+          className="pc-img h-full w-full select-none object-contain"
+          onLoad={(event) => event.currentTarget.setAttribute("data-ready", "")}
+          onError={(event) => event.currentTarget.setAttribute("data-ready", "")}
         />
         {selected && (
           <span className="absolute right-1.5 top-1.5 flex size-[1.1rem] items-center justify-center rounded-full bg-accent text-on-accent">
