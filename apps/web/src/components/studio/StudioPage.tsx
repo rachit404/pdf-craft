@@ -24,7 +24,7 @@ import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { deleteFile, getFileDownloadUrl, saveFlow } from "@/lib/api";
 import { definitionFromSteps, replayable } from "@/lib/flows";
-import { formatSize, timeLeft } from "@/lib/format";
+import { fileLabel, formatSize, timeLeft } from "@/lib/format";
 import type { StudioTool } from "@/lib/operations";
 import type { Route } from "@/lib/route";
 import { cn } from "@/lib/utils";
@@ -181,7 +181,7 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
   }
 
   const selection = useMemo(() => order.filter((page) => selected.has(page)).sort((a, b) => a - b), [order, selected]);
-  const recordName = studio.record?.original_name ?? "document.pdf";
+  const recordName = studio.record ? fileLabel(studio.record) : "document.pdf";
   const left = timeLeft(studio.record?.expires_at ?? null, now);
   const Panel = PANELS[tool];
 
@@ -214,6 +214,12 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save the flow.");
     }
+  }
+
+  /** Back to the page you came from (a tool, Files, a flow); Files when there is nowhere to go back to. */
+  function goBack() {
+    if (window.history.length > 1) window.history.back();
+    else navigate({ name: "files" });
   }
 
   async function deleteNow() {
@@ -256,7 +262,7 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
       <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
-        <Button variant="ghost" size="icon" aria-label="Back to files" onClick={() => navigate({ name: "files" })}>
+        <Button variant="ghost" size="icon" aria-label="Back" title="Back" onClick={goBack}>
           <ArrowLeft className="size-4" />
         </Button>
         <div className="min-w-0">
@@ -308,7 +314,7 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
 
       <div className="flex min-h-0 flex-1">
         {/* Tool rail */}
-        <nav aria-label="Tools" className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-panel py-2">
+        <nav aria-label="Tools" className="flex w-[4.75rem] shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-panel px-2 py-2.5">
           {TOOLS.map((item) => (
             <button
               key={item.id}
@@ -321,12 +327,19 @@ export default function StudioPage({ file, tool: toolParam, mode: modeParam, nav
                 openTool(item.id);
               }}
               className={cn(
-                "flex w-12 flex-col items-center gap-0.5 rounded-ctl py-1.5 text-[0.65rem] font-medium transition-colors",
+                "group relative flex w-full flex-col items-center gap-1.5 rounded-box px-1 pb-2 pt-2.5 text-[0.76rem] font-medium leading-none transition-[background-color,color,transform] duration-200 ease-out active:scale-95",
                 tool === item.id ? "bg-accent-soft text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
               )}
             >
-              <item.icon className="size-[1.1rem]" strokeWidth={1.75} />
-              {item.label}
+              <span
+                className={cn(
+                  "absolute -left-2 bottom-2.5 top-2.5 w-0.5 origin-center rounded-full bg-accent transition-[transform,opacity] duration-300 ease-out",
+                  tool === item.id ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0",
+                )}
+                aria-hidden
+              />
+              <item.icon className="size-[1.4rem] transition-transform duration-200 group-hover:scale-110" strokeWidth={1.6} />
+              <span className="w-full truncate text-center">{item.label}</span>
             </button>
           ))}
         </nav>

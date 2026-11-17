@@ -1,7 +1,7 @@
 "use client";
 
-import { Combine, Download, FileImage, Loader2, Search, Trash2, Upload, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Download, FolderOpen, Loader2, Search, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import Button from "@/components/ui/Button";
@@ -12,16 +12,12 @@ import {
   downloadZip,
   getFileDownloadUrl,
   getRetentionHours,
-  imagesToPDF,
   listFiles,
-  mergeFiles,
-  runFlow,
   searchFiles,
-  uploadFile,
   type SearchResult,
   type StoredFileInfo,
 } from "@/lib/api";
-import { formatSize, timeAgo, timeLeft } from "@/lib/format";
+import { fileLabel, formatSize, timeAgo, timeLeft } from "@/lib/format";
 import { operationName } from "@/lib/operations";
 import type { Route } from "@/lib/route";
 import { cn } from "@/lib/utils";
@@ -35,8 +31,6 @@ const KIND_LABELS: Record<string, string> = {
   zip: "ZIP",
 };
 
-const ACCEPT = ".pdf,.png,.jpg,.jpeg,.docx,.pptx";
-
 function retentionText(hours: number | null): string {
   if (hours === null) return "";
   if (hours <= 0) return "Files are kept until you delete them.";
@@ -44,41 +38,18 @@ function retentionText(hours: number | null): string {
   return `Files are deleted automatically ${hours >= 48 ? `${Math.round(hours / 24)} days` : `${hours} hour${hours === 1 ? "" : "s"}`} after they are created.`;
 }
 
-/** Turn a Word or PowerPoint file into a PDF with a one-step flow. */
-async function officeToPDF(file: StoredFileInfo): Promise<StoredFileInfo> {
-  const op = `${file.kind}_to_pdf`;
-  const run = await runFlow(
-    {
-      nodes: [
-        { id: "in", op: "source" },
-        { id: "convert", op },
-        { id: "out", op: "output" },
-      ],
-      edges: [
-        { source: "in", target: "convert" },
-        { source: "convert", target: "out" },
-      ],
-    },
-    { in: [file.name] },
-  );
-
-  return run.files[0];
-}
-
 interface FilesPageProps {
   navigate: (route: Route) => void;
 }
 
-/** Your files: drop anything in, open it in the Studio, or combine several. */
+/** What is stored on the server: open, download or delete it. Tools take new files themselves. */
 export default function FilesPage({ navigate }: FilesPageProps) {
   const [files, setFiles] = useState<StoredFileInfo[] | null>(null);
   const [retention, setRetention] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
   const [now, setNow] = useState(() => Date.now());
-  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<SearchResult | null>(null);
   const [searching, setSearching] = useState(false);
@@ -140,49 +111,8 @@ export default function FilesPage({ navigate }: FilesPageProps) {
     }
   }
 
-  /** Store what was dropped. One PDF opens at once; Office files become PDFs; images become one PDF. */
-  async function takeIn(list: FileList | File[]) {
-    const picked = Array.from(list);
-
-    if (picked.length === 0) return;
-
-    setBusy(true);
-
-    try {
-      const stored: StoredFileInfo[] = [];
-
-      for (const file of picked) stored.push(await uploadFile(file));
-
-      const pdfs: StoredFileInfo[] = stored.filter((item) => item.kind === "pdf");
-      const images = stored.filter((item) => item.kind === "image");
-
-      for (const office of stored.filter((item) => item.kind === "docx" || item.kind === "pptx")) {
-        pdfs.push(await officeToPDF(office));
-      }
-
-      if (images.length > 0) {
-        const made = await imagesToPDF(images.map((item) => item.name));
-
-        pdfs.push(...(await listFiles()).filter((item) => item.name === made.output_filename));
-      }
-
-      await refresh();
-
-      if (pdfs.length === 1) navigate({ name: "studio", file: pdfs[0].name });
-      else toast.success(`${stored.length} file${stored.length === 1 ? "" : "s"} added`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not add those files.");
-      await refresh().catch(() => undefined);
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
   const byName = new Map((files ?? []).map((file) => [file.name, file]));
   const chosen = checked.map((name) => byName.get(name)).filter((file): file is StoredFileInfo => Boolean(file));
-  const chosenPdfs = chosen.filter((file) => file.kind === "pdf");
-  const chosenImages = chosen.filter((file) => file.kind === "image");
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8">
@@ -208,31 +138,6 @@ export default function FilesPage({ navigate }: FilesPageProps) {
             Delete all my files
           </Button>
         )}
-      </div>
-
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          void takeIn(event.dataTransfer.files);
-        }}
-        className={cn(
-          "mb-5 flex flex-col items-center gap-2 rounded-box border border-dashed px-6 py-8 text-center transition-colors",
-          dragging ? "border-accent bg-accent-soft/50" : "border-line-strong bg-surface",
-        )}
-      >
-        {busy ? <Loader2 className="size-6 animate-spin text-accent" /> : <Upload className="size-6 text-fg-subtle" strokeWidth={1.5} />}
-        <p className="font-medium">{busy ? "Working..." : "Drop PDFs, images, Word or PowerPoint files here"}</p>
-        <p className="text-[0.82rem] text-fg-subtle">A PDF opens right away. Images and Office files are turned into PDFs first.</p>
-        <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(event) => void takeIn(event.target.files ?? [])} />
-        <Button variant="primary" disabled={busy} onClick={() => inputRef.current?.click()}>
-          Choose files
-        </Button>
       </div>
 
       <form
@@ -290,36 +195,6 @@ export default function FilesPage({ navigate }: FilesPageProps) {
       {checked.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-box border border-line bg-panel px-3 py-2 text-[0.85rem]">
           <span className="mr-auto font-medium">{checked.length} selected</span>
-          {chosenPdfs.length >= 2 && chosenPdfs.length === chosen.length && (
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void act(async () => {
-                  const made = await mergeFiles(chosenPdfs.map((file) => file.name));
-
-                  setChecked([]);
-                  navigate({ name: "studio", file: made.output_filename });
-                })
-              }
-            >
-              <Combine className="size-4" strokeWidth={1.75} /> Merge in this order
-            </Button>
-          )}
-          {chosenImages.length > 0 && chosenImages.length === chosen.length && (
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void act(async () => {
-                  const made = await imagesToPDF(chosenImages.map((file) => file.name));
-
-                  setChecked([]);
-                  navigate({ name: "studio", file: made.output_filename });
-                })
-              }
-            >
-              <FileImage className="size-4" strokeWidth={1.75} /> Make a PDF
-            </Button>
-          )}
           {chosen.length >= 2 && (
             <Button disabled={busy} onClick={() => void act(() => downloadZip(chosen.map((file) => file.name)))}>
               <Download className="size-4" strokeWidth={1.75} /> Download as ZIP
@@ -348,7 +223,10 @@ export default function FilesPage({ navigate }: FilesPageProps) {
       ) : files.length === 0 ? (
         <div className="rounded-box border border-line bg-surface px-6 py-10 text-center">
           <p className="font-medium">No files yet</p>
-          <p className="mt-1 text-[0.85rem] text-fg-subtle">Add one above to start editing.</p>
+          <p className="mt-1 text-[0.85rem] text-fg-subtle">Files you add in a tool or a flow are kept here until they are removed.</p>
+          <Button className="mt-4" onClick={() => navigate({ name: "tools", category: "All tools" })}>
+            <FolderOpen className="size-4" strokeWidth={1.75} /> Open a tool
+          </Button>
         </div>
       ) : (
         <div className="overflow-hidden rounded-box border border-line bg-surface">
@@ -375,7 +253,7 @@ export default function FilesPage({ navigate }: FilesPageProps) {
                 >
                   <input
                     type="checkbox"
-                    aria-label={`Select ${file.original_name}`}
+                    aria-label={`Select ${fileLabel(file)}`}
                     checked={order >= 0}
                     disabled={!file.available}
                     onChange={(event) =>
@@ -391,7 +269,7 @@ export default function FilesPage({ navigate }: FilesPageProps) {
                   >
                     <p className={cn("truncate text-[0.9rem] font-medium", openable && "hover:text-accent")}>
                       {order >= 0 && <span className="mr-1.5 font-mono text-[0.75rem] text-accent">{order + 1}</span>}
-                      {file.original_name}
+                      {fileLabel(file)}
                     </p>
                     <p className="truncate text-[0.78rem] text-fg-subtle">{operationName(file.operation)}</p>
                   </button>
@@ -404,7 +282,7 @@ export default function FilesPage({ navigate }: FilesPageProps) {
                       <a
                         href={getFileDownloadUrl(file.name)}
                         download
-                        aria-label={`Download ${file.original_name}`}
+                        aria-label={`Download ${fileLabel(file)}`}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-ctl text-fg-muted hover:bg-hover hover:text-fg"
                       >
                         <Download className="size-4" strokeWidth={1.75} />
@@ -415,7 +293,7 @@ export default function FilesPage({ navigate }: FilesPageProps) {
                     <button
                       type="button"
                       disabled={busy}
-                      aria-label={`Delete ${file.original_name}`}
+                      aria-label={`Delete ${fileLabel(file)}`}
                       onClick={() => void act(() => deleteFile(file.name), "File deleted")}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-ctl text-fg-subtle hover:bg-hover hover:text-danger disabled:opacity-40"
                     >

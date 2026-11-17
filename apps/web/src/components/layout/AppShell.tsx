@@ -42,6 +42,8 @@ const SECTIONS: { id: "tools" | "flows" | "files"; label: string; icon: LucideIc
 
 /** The Studio belongs to Files: it is where a file is edited. */
 function sectionOf(route: Route): string {
+  if (route.name === "tool") return "tools";
+
   return route.name === "studio" ? "files" : route.name;
 }
 

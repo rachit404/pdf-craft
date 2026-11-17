@@ -8,6 +8,7 @@ import ToolsPage from "@/components/dashboard/ToolsPage";
 import AppShell from "@/components/layout/AppShell";
 import SettingsPage from "@/components/settings/SettingsPage";
 import StudioPage from "@/components/studio/StudioPage";
+import ToolPage from "@/components/tools/ToolPage";
 import { launchTool } from "@/lib/launch";
 import { useRoute } from "@/lib/route";
 
@@ -27,12 +28,14 @@ export default function Home() {
 
 function Dashboard() {
   const [route, navigate] = useRoute();
-  const openTool = (id: string) => void launchTool(id, navigate);
+  const openTool = (id: string) => launchTool(id, navigate);
 
   return (
     <AppShell route={route} navigate={navigate} onOpenTool={openTool}>
       {route.name === "studio" ? (
         <StudioPage key={route.file} file={route.file} tool={route.tool} mode={route.mode} navigate={navigate} />
+      ) : route.name === "tool" ? (
+        <ToolPage key={route.id} id={route.id} navigate={navigate} />
       ) : route.name === "flows" ? (
         <FlowsPage key={route.id ?? "new"} navigate={navigate} openId={route.id} />
       ) : route.name === "files" ? (

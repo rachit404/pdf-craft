@@ -63,8 +63,8 @@
 
 html {
   min-height: 100%;
-  /* A compact scale: every rem-based size in the app follows it. */
-  font-size: 15px;
+  /* A compact scale: every rem-based size in the app follows it, so changing this number resizes the whole site. */
+  font-size: 14.5px;
 }
 
 body {
@@ -77,15 +77,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
+/* In the base layer, so the size classes on buttons and fields (text-[0.85rem] and so on) still win. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 
-button {
-  cursor: pointer;
+  button {
+    cursor: pointer;
+  }
 }
 
 :focus-visible {

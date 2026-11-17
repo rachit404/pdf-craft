@@ -40,3 +40,10 @@ export function timeLeft(
     soon: minutes < 120,
   };
 }
+
+/** The name to show for a stored file. A PDF made from a Word file or an image keeps its source's name, so give it a .pdf ending. */
+export function fileLabel(file: { original_name: string; kind: string }): string {
+  if (file.kind !== "pdf" || /\.pdf$/i.test(file.original_name)) return file.original_name;
+
+  return `${file.original_name.replace(/\.[^.]+$/, "")}.pdf`;
+}
