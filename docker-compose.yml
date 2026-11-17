@@ -1,0 +1,88 @@
+# PDF Craft with Docker Compose: the API, the web app and Caddy (HTTPS).
+#
+#   cp .env.example .env        # then edit it: address, password hash, secret
+#   docker compose up -d --build
+#
+# The API and the web app sit on a private network with no route to the
+# internet. Only Caddy is reachable from outside, on ports 80 and 443.
+name: pdf-craft
+
+services:
+  api:
+    build:
+      context: ./services/api
+      args:
+        WITH_LIBREOFFICE: ${WITH_LIBREOFFICE:-0}
+    restart: unless-stopped
+    environment:
+      PDF_CRAFT_PASSWORD_HASH: ${PDF_CRAFT_PASSWORD_HASH:-}
+      PDF_CRAFT_SECRET: ${PDF_CRAFT_SECRET:-}
+      PDF_CRAFT_SESSION_HOURS: ${PDF_CRAFT_SESSION_HOURS:-168}
+      PDF_CRAFT_COOKIE_SECURE: ${PDF_CRAFT_COOKIE_SECURE:-1}
+      PDF_CRAFT_RETENTION_HOURS: ${PDF_CRAFT_RETENTION_HOURS:-24}
+      PDF_CRAFT_MAX_UPLOAD_MB: ${PDF_CRAFT_MAX_UPLOAD_MB:-25}
+      PDF_CRAFT_MAX_IMAGE_MB: ${PDF_CRAFT_MAX_IMAGE_MB:-10}
+      PDF_CRAFT_OFFICE_WORKERS: ${PDF_CRAFT_OFFICE_WORKERS:-2}
+      PDF_CRAFT_OFFICE_TIMEOUT: ${PDF_CRAFT_OFFICE_TIMEOUT:-120}
+      PDF_CRAFT_FLOW_CACHE: ${PDF_CRAFT_FLOW_CACHE:-1}
+    volumes:
+      - data:/data
+    networks: [internal]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/app:uid=10001,gid=10001
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        API_INTERNAL_URL: http://api:8000
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=10001,gid=10001
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      TLS_MODE: ${TLS_MODE:-internal}
+      MAX_BODY: ${MAX_BODY:-40MB}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    # Caddy is on both networks: it takes requests from outside and passes them to the web app and API.
+    networks: [internal, edge]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  # No route out: the API and the web app cannot open connections to the internet.
+  internal:
+    internal: true
+  edge:

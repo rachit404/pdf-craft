@@ -1,0 +1,35 @@
+# Used by docker-compose.yml. Settings come from the .env file next to it:
+#   SITE_ADDRESS  the name or IP you type in the browser (default: localhost)
+#   TLS_MODE      "internal" for a private certificate (LAN names and IPs), or an
+#                 email address to get a Let's Encrypt certificate for a public domain
+#   MAX_BODY      largest request body; keep it a little above PDF_CRAFT_MAX_UPLOAD_MB
+
+{$SITE_ADDRESS:localhost} {
+	tls {$TLS_MODE:internal}
+
+	encode zstd gzip
+
+	request_body {
+		max_size {$MAX_BODY:40MB}
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# The API goes straight to the backend (no extra hop through the web app).
+	handle /api/backend/* {
+		uri strip_prefix /api/backend
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

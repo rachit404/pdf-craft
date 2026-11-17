@@ -5,17 +5,126 @@ PDF documents with a modern web interface, entirely on your own hardware.
 Nothing is uploaded to a third-party service, and the production services are
 blocked from reaching the internet at the operating-system level.
 
-- 28 tools in one interface, covering what online PDF sites offer
-- Runs on a single Linux machine; no Docker, no cloud account, no subscription
+- 35 tools in one interface, covering what online PDF sites offer and more
+- A **Studio** where every edit becomes a new version of your file, with undo, page thumbnails and live previews
+- **Flows**: chain tools on a canvas so each step hands its result to the next, with no downloading in between
+- Runs on a single Linux machine, with or without Docker; no cloud account, no subscription
 - Optional password sign-in, HTTPS, automatic deletion of uploaded files
-- Three built-in themes (Cool Light by default, Cool Dark, Warm Paper), match-system, and a custom theme creator
+- Four built-in themes (Aurora by default, Cool Light, Cool Dark, Warm Paper), match-system, and a custom theme creator
 - FastAPI backend, Next.js front end, SQLite; no external services
+
+## Self-host it
+
+PDF Craft is built to live on your own Linux machine (a spare PC, a home server or a small VM).
+Two services run behind Caddy, which provides HTTPS. Documents never leave the machine.
+
+**You need:** Ubuntu 24.04, Debian 12 or Debian 13 (or any systemd Linux with Python 3.11+),
+Node.js 20.9 or newer, 2 CPU cores and 2 GB of RAM. Internet access is needed only while installing.
+
+**1. Get the code**
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/rachit404/pdf-craft.git
+cd pdf-craft
+```
+
+**2. Install.** Use the name or IP address you will type in the browser
+(for example `pdf.home.lan` or `192.168.1.20`). `--with-libreoffice` is optional and gives accurate Word and PowerPoint conversion.
+
+```bash
+sudo bash deploy/install.sh --host pdf.home.lan --with-libreoffice
+```
+
+The installer asks you to choose a password, then installs the packages, builds the web app,
+creates the two systemd services and sets up HTTPS. It takes a few minutes the first time.
+If Node.js is missing or too old it tells you how to install it.
+
+**3. Check it works**
+
+```bash
+/opt/pdf-craft/venv/bin/python deploy/smoke_test.py https://pdf.home.lan --insecure --password 'your-password'
+```
+
+Then open `https://pdf.home.lan` and sign in. Your browser will warn about the certificate until you trust
+the private certificate authority; the steps are in the self-hosting guide.
+
+**Everyday commands**
+
+| Task | Command |
+|---|---|
+| Update | `cd pdf-craft && git pull && sudo bash deploy/install.sh` (earlier options are remembered) |
+| Change the password | `sudo bash deploy/set-password.sh` |
+| View logs | `sudo journalctl -u pdf-craft-api -f` |
+| Restart | `sudo systemctl restart pdf-craft-api pdf-craft-web` |
+| Uninstall | `sudo bash deploy/uninstall.sh` (add `--purge` to delete the data too) |
+
+**Where things live:** the program in `/opt/pdf-craft`, files and history in `/var/lib/pdf-craft`, settings in
+`/etc/pdf-craft/pdf-craft.env`. Edit that file and restart the services to change a setting; see
+[Configuration](#configuration). Other install options (`--tls auto` for a public domain, `--no-proxy` for plain HTTP on a
+trusted network, `--allow-no-auth`) are listed by `bash deploy/install.sh --help`.
+
+Keep it on a private network or behind a VPN such as WireGuard or Tailscale rather than publishing it to the internet.
+The full guide, including trusting the certificate, running everything by hand and checking that it is private, is
+**[docs/self-hosting.md](docs/self-hosting.md)**.
+
+### Or with Docker
+
+If you prefer containers, `docker-compose.yml` runs the same three parts: the API, the web app and Caddy for HTTPS.
+It needs Docker Engine with the Compose plugin (Linux, or Docker Desktop on Windows and macOS).
+
+```bash
+git clone https://github.com/rachit404/pdf-craft.git
+cd pdf-craft
+cp .env.example .env
+```
+
+Edit `.env`:
+
+- `SITE_ADDRESS`: the name or IP address you will type in the browser.
+- `TLS_MODE`: leave `internal` for a private certificate on a LAN, or put your email address to get a
+  Let's Encrypt certificate for a public domain.
+- `PDF_CRAFT_PASSWORD_HASH`: make it with `docker compose run --rm api python -m app.auth` (it asks for a password and
+  prints the hash). Paste it between the single quotes.
+- `PDF_CRAFT_SECRET`: any long random string, for example from `openssl rand -hex 32`.
+- `WITH_LIBREOFFICE=1` builds the API image with LibreOffice for accurate Word and PowerPoint conversion
+  (about 600 MB more).
+
+Then start it:
+
+```bash
+docker compose up -d --build
+```
+
+Open `https://<SITE_ADDRESS>`. Useful commands:
+
+| Task | Command |
+|---|---|
+| Update | `git pull && docker compose up -d --build` |
+| View logs | `docker compose logs -f api` |
+| Restart | `docker compose restart` |
+| Stop | `docker compose down` (your files stay in the `data` volume) |
+| Delete everything including files | `docker compose down -v` |
+
+The API and the web app sit on a private Docker network with no route to the internet; only Caddy is reachable, on ports
+80 and 443. They run as unprivileged users with a read-only file system and no extra privileges, and files and history are
+kept in the `data` volume. Every setting in [Configuration](#configuration) can be added to `.env` or to the `api`
+service in `docker-compose.yml`.
+
+A compose file does not replace the Linux install: the systemd route above also blocks internet access at the operating-system
+level and needs no Docker. Choose whichever you already run. The Docker files have not been run on every platform yet, so
+check the result with `docker compose ps` and the smoke test below before relying on it:
+
+```bash
+docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read())"
+```
 
 ## Contents
 
+- [Self-host it](#self-host-it)
+- [Or with Docker](#or-with-docker)
 - [Features](#features)
-- [Quick start](#quick-start)
-- [Self-hosting on Linux](#self-hosting-on-linux)
+- [Try it on your computer](#try-it-on-your-computer)
 - [Local development](#local-development)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
@@ -31,11 +140,14 @@ blocked from reaching the internet at the operating-system level.
 
 | Category | Tools |
 |---|---|
-| **Organize** | Merge, split, extract pages, reorder, delete pages, duplicate pages, rotate, compress (lossless or image-reducing), PDF details and metadata |
-| **Edit** | Add text, add images, watermark, page numbers, header and footer, background colour, crop. Placement is by clicking on a live page preview |
+| **Organize** | Merge, split (by ranges, every N pages, or at blank pages), extract pages, reorder by dragging thumbnails, delete, duplicate, rotate, remove blank pages, compress (lossless, image-reducing, or to a size you choose), compare two PDFs, PDF details and metadata |
+| **Edit** | Add text, images and signatures (draw one on the pad), stamps (APPROVED, DRAFT, CONFIDENTIAL and your own), watermark, page numbers, header and footer with `{page}`, `{pages}` and `{date}`, background colour, crop, highlight, underline, box and note annotations, fill and flatten forms, greyscale, straighten tilted scans. Placement is by clicking on a live page |
 | **Convert** | PDF to images (PNG/JPEG), images to PDF, PDF to Word, PDF to Excel, PDF to PowerPoint, Word to PDF, PowerPoint to PDF, PDF to text |
-| **Protect** | Password protection (AES-256) with permissions, unlock, permanent redaction (drawn areas and search terms), sanitize (metadata, scripts, attachments, comments, links, hidden text) |
-| **Workspace** | A file library with versions, re-download and delete, one-click "delete all my files", automatic clean-up after a retention period, Ctrl K command palette, themes, optional sign-in |
+| **Protect** | Password protection (AES-256) with permissions, unlock, permanent redaction (drawn areas and search terms), sanitize (metadata, scripts, attachments, comments, links, hidden text), document details editor |
+| **Studio** | One workspace per document: page grid, large page view, tool panels, a versions bar with undo and redo (Ctrl+Z, Ctrl+Y), expiry shown with "Delete now", and "Save as flow" to repeat your edits on other files |
+| **Flows** | A canvas for chaining any tool: drag steps in, join them, click a step to change its settings and preview what goes in and what it makes, run the whole flow or only up to a step, run it on many files at once and download the results as a ZIP. Flows can be saved, exported and imported, or started from templates |
+| **Files** | A library with versions, search inside your PDFs (full-text index), merge and convert on upload, ZIP download of a selection, automatic clean-up after a retention period, one-click "delete all my files" |
+| **Interface** | Top bar with Ctrl K search, one sidebar that is either open (icons with names and the page's own list) or collapsed to icons, four themes plus a custom theme creator, optional sign-in |
 
 Highlights:
 
@@ -50,32 +162,7 @@ Highlights:
   path traversal is rejected.
 - **No lock-in.** Results are standard PDF, DOCX, XLSX, PPTX, ZIP and PNG/JPEG files.
 
-## Quick start
-
-### Run it on a Linux server (recommended)
-
-Prerequisites: Ubuntu 24.04, Debian 12 or Debian 13, with Node.js 20.9 or newer
-(the installer tells you how to get it if it is missing).
-
-```bash
-git clone https://github.com/rachit404/pdf-craft.git
-cd pdf-craft
-sudo bash deploy/install.sh --host pdf.home.lan --with-libreoffice
-```
-
-Use the name or IP address you will type in the browser. The installer asks you
-to choose a password, then sets up the services and HTTPS. Verify the result with
-the built-in self-test:
-
-```bash
-/opt/pdf-craft/venv/bin/python deploy/smoke_test.py https://pdf.home.lan --insecure --password 'your-password'
-```
-
-The full guide, including trusting the HTTPS certificate, updating, changing the
-password, and running everything by hand, is in
-**[docs/self-hosting.md](docs/self-hosting.md)**.
-
-### Try it on your own computer
+## Try it on your computer
 
 Two terminals, no installation of system services (Windows CMD shown; see
 [Local development](#local-development) for Linux and macOS):
@@ -95,33 +182,6 @@ npm run dev
 ```
 
 Open <http://localhost:3000>.
-
-## Self-hosting on Linux
-
-`deploy/install.sh` performs a complete, repeatable installation:
-
-| Step | Result |
-|---|---|
-| Packages | Python venv support, rsync, curl, Caddy (and optionally LibreOffice) via `apt` |
-| Accounts and folders | System user `pdfcraft`; program in `/opt/pdf-craft` (root-owned); data in `/var/lib/pdf-craft`; settings in `/etc/pdf-craft` |
-| Backend | Python virtual environment installed from pinned versions (`constraints.txt`) |
-| Web app | Built once into a small standalone Node server |
-| Services | `pdf-craft-api` and `pdf-craft-web` (systemd), hardened and restricted to the local machine |
-| HTTPS | Caddy reverse proxy with an automatic certificate (private CA for LAN names and IPs, Let's Encrypt for public domains) |
-
-Day-to-day commands:
-
-| Task | Command |
-|---|---|
-| Update | `git pull && sudo bash deploy/install.sh` (previous options are remembered) |
-| Change the password | `sudo bash deploy/set-password.sh` |
-| View logs | `sudo journalctl -u pdf-craft-api -f` |
-| Restart | `sudo systemctl restart pdf-craft-api pdf-craft-web` |
-| Uninstall | `sudo bash deploy/uninstall.sh` (add `--purge` to delete data too) |
-
-Installer options include `--tls auto` (public domain), `--no-proxy` (plain HTTP on
-a trusted network), `--with-libreoffice` and `--allow-no-auth`. Run
-`bash deploy/install.sh --help` for the list.
 
 ## Local development
 
@@ -170,6 +230,8 @@ after editing.
 | `PDF_CRAFT_OFFICE_WORKERS` | `2` | Concurrent LibreOffice conversions |
 | `PDF_CRAFT_OFFICE_TIMEOUT` | `120` | Seconds before a conversion is stopped |
 | `PDF_CRAFT_SOFFICE` | auto-detect | Path to the `soffice` executable |
+| `PDF_CRAFT_FLOW_CACHE` | `1` | A flow step run again on identical files and settings reuses its earlier result; `0` turns this off |
+| `PDF_CRAFT_FLOW_MAX_ITEMS`, `PDF_CRAFT_FLOW_TIMEOUT` | `50`, `600` | Most files one flow step may handle, and seconds a whole run may take |
 | `PDF_CRAFT_PASSWORD_HASH` | unset | Turns sign-in on. Create it with `python -m app.auth` |
 | `PDF_CRAFT_SECRET` | unset | Random string (16+ characters) that signs session cookies; required with a password |
 | `PDF_CRAFT_SESSION_HOURS` | `168` | Length of a sign-in |
@@ -196,7 +258,7 @@ after editing.
 | Backend | Python 3.11+, FastAPI, SQLAlchemy, SQLite |
 | PDF engines | PyMuPDF (rendering, redaction, compression, sanitizing), pikepdf/QPDF (lossless compression), pypdf (page operations, encryption), ReportLab (overlays), pdf2docx, pdfplumber, python-docx, openpyxl, python-pptx |
 | Optional | LibreOffice (Word/PowerPoint to PDF) |
-| Deployment | systemd, Caddy, shell scripts (no containers) |
+| Deployment | systemd, Caddy and shell scripts, or Docker Compose |
 
 Design decisions:
 
@@ -219,8 +281,9 @@ the upload call, and results are fetched from `/outputs/{name}`.
 | `/operations` | `POST /operations/merge`, `/{f}/split`, `extract-pages`, `reorder-pages`, `delete-pages`, `duplicate-pages`, `rotate`, `watermark`, `page-numbers`, `header-footer`, `background`, `crop`, `add-text`, `add-image` |
 | `/conversions` | `/{f}/to-images`, `/{f}/to-docx`, `/{f}/to-xlsx`, `/{f}/to-pptx`, `/images-to-pdf`, `/docx-to-pdf`, `/pptx-to-pdf`, `/capabilities` |
 | `/security` | `/{f}/protect`, `/unlock`, `/redact`, `/sanitize` |
-| `/files` | File library: `GET /files`, `POST /files` (any supported file), `/{name}/versions`, `/family`, `/download`, `DELETE /files/{name}` |
-| `/registry`, `/flows` | `GET /registry/operations` (every tool with a settings schema); `POST /flows/validate`, `POST /flows/runs`, `GET /flows/runs/{id}` run chained steps without downloading in between |
+| `/files` | File library: `GET /files`, `POST /files` (any supported file), `/search?q=`, `POST /files/zip`, `/{name}/versions`, `/family`, `/download`, `DELETE /files/{name}` |
+| `/tools` | Power tools: `/{f}/remove-blank-pages`, `flatten-forms`, `fill-form`, `form-fields`, `edit-metadata`, `compress-to-target`, `stamp`, `to-grayscale`, `annotate`, `deskew`, and `POST /tools/compare` |
+| `/registry`, `/flows` | `GET /registry/operations` (every tool with a settings schema); `POST /flows/validate`, `POST /flows/runs`, `GET /flows/runs/{id}` run chained steps without downloading in between; `/flows/saved` keeps flows |
 | `/jobs` | History: `GET /jobs`, `DELETE /jobs/{id}`, `DELETE /jobs` (delete everything), `GET /jobs/retention` |
 | `/auth` | `GET /auth/status`, `POST /auth/login`, `POST /auth/logout` |
 | `/outputs` | `GET /outputs/{name}?name=report.pdf` downloads a result under a friendly file name |
@@ -248,7 +311,7 @@ curl -s -X POST -H "Content-Type: application/json" -d '{"pages":[1,2]}' http://
   HttpOnly session cookies, a limit on failed attempts, and the API schema hidden
   from anonymous visitors.
 - **Data retention.** Uploads and results are deleted automatically (24 hours by
-  default) and can be wiped immediately from the *Recent files* page.
+  default) and can be wiped immediately from the *Files* page or with "Delete now" in the Studio.
 - **Input validation.** Uploads are size-limited and checked by content; Office
   documents must be real OOXML archives; output and upload names are sanitised.
 - **Recommended exposure.** Keep it on a private network or behind a VPN
@@ -261,7 +324,7 @@ are advisory: the password is what protects the content.
 
 ```bash
 cd services/api && . .venv/bin/activate
-python -m pytest -q                      # 255 backend tests
+python -m pytest -q                      # 291 backend tests
 cd ../../apps/web && npm run lint && npm run build
 ```
 
@@ -286,7 +349,9 @@ python deploy/smoke_test.py http://127.0.0.1:8000 --api-prefix ""      # add --p
   search-based redaction cannot read them (draw redaction boxes by hand).
   Text recognition (OCR) is planned.
 - Authentication is a single shared password; there are no per-user accounts.
-- Page previews show pages unrotated, and edit coordinates follow that view.
+- Page previews in the large view show pages unrotated, and edit coordinates follow that view.
+- Word, PowerPoint and Excel results cannot be previewed in the browser; the preview offers a download instead.
+- Search reads the text layer, so scanned pages are not searchable until text recognition (OCR) is added.
 
 ## Roadmap
 
@@ -297,24 +362,28 @@ self-hosting.
 PDFs, summarisation, chat with a document and question answering, and intelligent
 extraction, all running locally to keep the privacy guarantees.
 
-Possible improvements: page thumbnails in the older page-organising tools,
-upload progress indicators, drag-and-drop page reordering, a dark theme, and
-editing PDF metadata.
+Possible improvements: freehand drawing annotations, a visual (pixel) comparison of two PDFs, hot folders and
+scheduled flows, and text recognition for scans.
 
 ## Project layout
 
 ```
 services/api/          FastAPI application
-  app/api/routers/       HTTP endpoints (uploads, operations, conversions, security, jobs, auth)
-  app/services/          storage, history, retention, orchestration
-  app/engines/pdf/       PDF engines (merge/split/edit, convert, security, compress, render, LibreOffice)
+  app/api/routers/       HTTP endpoints (uploads, operations, tools, conversions, security, files, flows, jobs, auth)
+  app/registry/          the catalogue of operations every screen and flow is built from
+  app/flows/             flow validation, execution, saved runs and the step cache
+  app/services/          storage, history, retention, search index, orchestration
+  app/engines/pdf/       PDF engines (merge/split/edit, power tools, convert, security, compress, render, LibreOffice)
   app/schemas/           request and response models
   tests/                 pytest suite
 apps/web/              Next.js application
   src/components/studio/      the Studio: page grid, tool panels, versions
   src/components/flows/       the Flows canvas: chain tools without downloading in between
-  src/lib/               API client and the tool list
-deploy/                install, update, password and uninstall scripts; systemd units; Caddy template; self-test
+  src/components/layout/      top bar, sidebar and Ctrl K palette
+  src/components/ui/          buttons, modal, logo and other shared controls
+  src/lib/               API client, tool list, themes and flow helpers
+deploy/                install, update, password and uninstall scripts; systemd units; Caddy templates; self-test
+docker-compose.yml     Docker Compose setup (API, web app, Caddy); settings in .env.example
 docs/                  self-hosting guide
 CLAUDE/                working notes: roadmap, decisions and current state of the project
 ```
