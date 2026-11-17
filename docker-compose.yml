@@ -64,9 +64,12 @@ services:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
       TLS_MODE: ${TLS_MODE:-internal}
       MAX_BODY: ${MAX_BODY:-40MB}
+      HTTP_PORT: ${HTTP_PORT:-80}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
+    # The same number inside and out, so the address and redirects Caddy hands back stay correct.
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:${HTTP_PORT:-80}"
+      - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}"
     volumes:
       - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

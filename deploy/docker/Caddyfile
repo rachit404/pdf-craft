@@ -2,7 +2,20 @@
 #   SITE_ADDRESS  the name or IP you type in the browser (default: localhost)
 #   TLS_MODE      "internal" for a private certificate (LAN names and IPs), or an
 #                 email address to get a Let's Encrypt certificate for a public domain
+#   HTTP_PORT, HTTPS_PORT  the ports to listen on (default 80 and 443)
 #   MAX_BODY      largest request body; keep it a little above PDF_CRAFT_MAX_UPLOAD_MB
+
+{
+	# Ports Caddy listens on. The compose file publishes the same numbers on the host.
+	http_port {$HTTP_PORT:80}
+	https_port {$HTTPS_PORT:443}
+	# Caddy's own redirect forgets a custom HTTPS port, so the redirect below does it instead.
+	auto_https disable_redirects
+}
+
+http://{$SITE_ADDRESS:localhost}:{$HTTP_PORT:80} {
+	redir https://{host}:{$HTTPS_PORT:443}{uri} permanent
+}
 
 {$SITE_ADDRESS:localhost} {
 	tls {$TLS_MODE:internal}

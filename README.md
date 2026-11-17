@@ -87,6 +87,8 @@ Edit `.env`:
 - `PDF_CRAFT_PASSWORD_HASH`: make it with `docker compose run --rm api python -m app.auth` (it asks for a password and
   prints the hash). Paste it between the single quotes.
 - `PDF_CRAFT_SECRET`: any long random string, for example from `openssl rand -hex 32`.
+- `HTTP_PORT` and `HTTPS_PORT`: the ports to publish (default 80 and 443). Change them if those are taken, then browse to
+  `https://<SITE_ADDRESS>:<HTTPS_PORT>`; plain HTTP requests are redirected there.
 - `WITH_LIBREOFFICE=1` builds the API image with LibreOffice for accurate Word and PowerPoint conversion
   (about 600 MB more).
 
@@ -111,13 +113,18 @@ The API and the web app sit on a private Docker network with no route to the int
 kept in the `data` volume. Every setting in [Configuration](#configuration) can be added to `.env` or to the `api`
 service in `docker-compose.yml`.
 
-A compose file does not replace the Linux install: the systemd route above also blocks internet access at the operating-system
-level and needs no Docker. Choose whichever you already run. The Docker files have not been run on every platform yet, so
-check the result with `docker compose ps` and the smoke test below before relying on it:
+With `TLS_MODE=internal` the certificate comes from Caddy's own private authority, so your browser will warn until you trust it.
+Export the authority's certificate and install it on your devices:
 
 ```bash
-docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read())"
+docker compose cp proxy:/data/caddy/pki/authorities/local/root.crt ./pdf-craft-root.crt
 ```
+
+A compose file does not replace the Linux install: the systemd route above also blocks internet access at the operating-system
+level and needs no Docker. Choose whichever you already run. The compose setup has been built and run with Docker Engine 29
+(without LibreOffice): all three containers become healthy, sign-in, upload, operations, search and ZIP download work through
+HTTPS, the API and web containers cannot reach the internet, run as an unprivileged user on a read-only file system, and files
+survive a restart. The `WITH_LIBREOFFICE=1` image has not been built yet. Check your own setup with `docker compose ps`.
 
 ## Contents
 
